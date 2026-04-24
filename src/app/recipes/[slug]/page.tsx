@@ -76,6 +76,7 @@ export default async function RecipeDetailPage({
 
 	const cost = computeRecipeCost(costInputs);
 	const perServing = recipe.servings > 0 ? cost.total / recipe.servings : cost.total;
+	const shoppingCost = computeRecipeCost(costInputs, "CZK", "shopping");
 
 	const nutritionInputs: NutritionLineInput[] = lines
 		.filter(
@@ -133,6 +134,10 @@ export default async function RecipeDetailPage({
 				</p>
 				<p className="font-mono text-xs text-zinc-500">
 					≈ {perServing.toFixed(2)} {cost.currency} / serving
+				</p>
+				<p className="mt-2 font-mono text-[10px] text-zinc-500">
+					Shopping (round up to whole packages): {shoppingCost.total.toFixed(2)}{" "}
+					{shoppingCost.currency}
 				</p>
 			</section>
 
