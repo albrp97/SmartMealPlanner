@@ -41,6 +41,8 @@ function parseForm(formData: FormData) {
 		carbs_per_100g: formData.get("carbs_per_100g"),
 		fat_per_100g: formData.get("fat_per_100g"),
 		fiber_per_100g: formData.get("fiber_per_100g"),
+		g_per_unit: formData.get("g_per_unit"),
+		density_g_per_ml: formData.get("density_g_per_ml"),
 	};
 	return ingredientInputSchema.safeParse(raw);
 }
