@@ -1,0 +1,172 @@
+{
+  "$schema_version": "0.1.0",
+  "notes": [
+    "Seed file for ingredient package formats and prices.",
+    "Source: user's Lidl shopping tickets in Prague + LLM-assisted estimation.",
+    "Prices are per WHOLE PACKAGE as actually sold in store, not per kg/unit. The shopping-list generator should round needed quantities up to whole packages and use these prices for the cost estimate.",
+    "Currency: CZK (Czech koruna). Conversion to EUR happens at display time using a configurable rate.",
+    "Default store: 'lidl_praha'. Multi-store support comes later via the price_history table.",
+    "'estimated': true means the price was inferred (not on the ticket) and should be re-confirmed on the next shop.",
+    "'package_size' is in the ingredient's base_unit (g, ml or unit). For produce sold loose, package_size = average weight of one item and package_unit = 'g' with sold_as = 'unit'.",
+    "Names are kept in Spanish to match recipes.json; canonical mapping to the ingredient catalogue happens in code."
+  ],
+  "currency": "CZK",
+  "store": {
+    "id": "lidl_praha",
+    "name": "Lidl",
+    "city": "Praha",
+    "country": "CZ"
+  },
+  "observed_at": "2026-04-24",
+  "categories": [
+    { "id": "carnes_proteinas", "name": "Carnes y proteínas" },
+    { "id": "lacteos",          "name": "Lácteos" },
+    { "id": "despensa",         "name": "Despensa" },
+    { "id": "fruta_verdura",    "name": "Fruta y verdura" }
+  ],
+  "ingredients": [
+    {
+      "id": "pollo_filetes_muslo",
+      "name": "pollo (filetes de muslo)",
+      "category_id": "carnes_proteinas",
+      "package_size": 800,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 159.12,
+      "unit_price_per_kg": 198.90,
+      "estimated": false,
+      "notes": "Precio derivado de 198,90 Kč/kg en ticket."
+    },
+    {
+      "id": "pollo_picado",
+      "name": "pollo picado",
+      "category_id": "carnes_proteinas",
+      "package_size": 500,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 79.90,
+      "estimated": false
+    },
+    {
+      "id": "queso_rallado",
+      "name": "queso rallado",
+      "category_id": "lacteos",
+      "package_size": 200,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 39.90,
+      "estimated": false
+    },
+    {
+      "id": "yogurt_natural",
+      "name": "yogurt natural",
+      "category_id": "lacteos",
+      "package_size": 1000,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 45.00,
+      "estimated": true,
+      "notes": "No aparecía en el ticket; estimación basada en precios habituales en Lidl."
+    },
+    {
+      "id": "arroz_basmati",
+      "name": "arroz basmati",
+      "category_id": "despensa",
+      "package_size": 1000,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 59.90,
+      "estimated": false
+    },
+    {
+      "id": "tortitas_wraps",
+      "name": "tortitas wraps",
+      "category_id": "despensa",
+      "package_size": 6,
+      "package_unit": "unit",
+      "sold_as": "package",
+      "package_price": 27.90,
+      "estimated": false
+    },
+    {
+      "id": "tomate_triturado_rustica",
+      "name": "tomate triturado (Rustica)",
+      "category_id": "despensa",
+      "package_size": 700,
+      "package_unit": "g",
+      "sold_as": "package",
+      "package_price": 36.90,
+      "estimated": false,
+      "brand": "Rustica"
+    },
+    {
+      "id": "pimiento_rojo",
+      "name": "pimiento rojo",
+      "category_id": "fruta_verdura",
+      "package_size": 350,
+      "package_unit": "g",
+      "sold_as": "unit",
+      "package_price": 42.20,
+      "estimated": false,
+      "notes": "Precio por unidad grande (~350 g)."
+    },
+    {
+      "id": "tomate_rama",
+      "name": "tomate rama",
+      "category_id": "fruta_verdura",
+      "package_size": 130,
+      "package_unit": "g",
+      "sold_as": "unit",
+      "package_price": 13.00,
+      "estimated": false,
+      "notes": "Precio por unidad media (~130 g)."
+    },
+    {
+      "id": "cebolla",
+      "name": "cebolla",
+      "category_id": "fruta_verdura",
+      "package_size": 150,
+      "package_unit": "g",
+      "sold_as": "unit",
+      "package_price": 6.00,
+      "estimated": false,
+      "notes": "Precio por unidad media (~150 g)."
+    },
+    {
+      "id": "patata",
+      "name": "patata",
+      "category_id": "fruta_verdura",
+      "package_size": 190,
+      "package_unit": "g",
+      "sold_as": "unit",
+      "package_price": 3.80,
+      "estimated": false,
+      "notes": "Precio por unidad media (~190 g)."
+    },
+    {
+      "id": "aguacate",
+      "name": "aguacate",
+      "category_id": "fruta_verdura",
+      "package_size": 1,
+      "package_unit": "unit",
+      "sold_as": "unit",
+      "package_price": 39.95,
+      "estimated": false
+    }
+  ],
+  "example_recipe_costs": [
+    {
+      "recipe": "burritos",
+      "currency": "CZK",
+      "items": [
+        { "ingredient_id": "pollo_picado",            "packages": 1.0,     "cost": 79.90 },
+        { "ingredient_id": "tortitas_wraps",          "packages": 1.0,     "cost": 27.90 },
+        { "ingredient_id": "arroz_basmati",           "packages": 0.333,   "cost": 18.00, "note": "300 g de un paquete de 1 kg" },
+        { "ingredient_id": "queso_rallado",           "packages": 1.0,     "cost": 39.90 },
+        { "ingredient_id": "aguacate",                "packages": 2.0,     "cost": 79.90 },
+        { "ingredient_id": "_misc_verduras_yogurt",   "packages": null,    "cost": 75.00, "note": "Estimación agregada hasta cargar precios individuales." }
+      ],
+      "total_estimated": 320.60
+    }
+  ]
+}
