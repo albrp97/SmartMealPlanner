@@ -107,26 +107,42 @@ Goal: empty app deployable to Vercel, CI green, DB connected.
 - [x] Vitest configured with `@/*` alias; first unit test (`tests/unit/phases.test.ts`).
 - [x] GitHub Actions CI: install → Biome → typecheck → test → build.
 - [x] `.env.example` with all keys validated by `lib/env.ts`.
-- [ ] Create Supabase project, save URL + anon + service keys (deferred to Phase 1 boundary).
+- [x] Connect repo to Vercel; live at https://smart-meal-planner-iota.vercel.app/
+- [x] Create Supabase project (done at the Phase 1 boundary).
 - [ ] Create Upstash Redis instance (deferred to Phase 4 boundary).
-- [ ] Connect repo to Vercel; verify `https://smart-meal-planner.vercel.app` works.
-- [ ] Init `shadcn/ui` (deferred until first real UI work in Phase 1).
+- [ ] Init `shadcn/ui` (deferred until the first form ships in Phase 1).
 - [ ] Configure PWA with **Serwist**: manifest + icons + service worker (deferred to Phase 5).
 - [ ] Set up Husky + commitlint for Conventional Commits (optional polish).
 
-> **Why some items are deferred:** they require external accounts (Supabase, Upstash, Vercel) or only become useful when their consumer feature ships. The bootstrap is "deployable" and "CI-green" without them.
+> **Why some items are deferred:** they require external accounts or only become useful when their consumer feature ships. The bootstrap is "deployable" and "CI-green" without them.
 
-### Phase 1 — Ingredient & recipe catalogue (read/write)
+### Phase 1 — Ingredient & recipe catalogue (read/write) — 🚧 in progress
 
-Goal: full CRUD on ingredients and recipes, seeded from the user’s list.
+Goal: full CRUD on ingredients and recipes, seeded from the user's list.
 
-- [ ] Migration `0001_init.sql` with all tables from README §6.
-- [ ] Seed script: ingest `seed/recipes.json` (parsed from the original message).
-- [ ] Pages:
-  - `/ingredients` — table + add/edit drawer (name, unit, package size, default price, macros per 100 g, micronutrients per 100 g as JSON, `is_supplement` flag + brand).
-  - `/recipes` — list grouped by category; recipe detail with ingredients editor.
-- [ ] API routes with Zod validation.
-- [ ] Unit cost preview on recipe detail (uses current `default_price`).
+- [x] Drizzle ORM schema in [`src/lib/db/schema.ts`](src/lib/db/schema.ts) — ingredient_categories, ingredients, recipe_categories, recipes, recipe_ingredients, stores, price_history.
+- [x] First migration generated → [`migrations/0000_tiny_masque.sql`](migrations/0000_tiny_masque.sql).
+- [x] Supabase clients: [`src/lib/db/client-server.ts`](src/lib/db/client-server.ts) (RSC + actions) and [`src/lib/db/client-browser.ts`](src/lib/db/client-browser.ts).
+- [x] Seed script in [`scripts/seed.ts`](scripts/seed.ts) — idempotent upsert of categories, ingredients, recipes, recipe_ingredients, price_history. Stubs missing ingredients with placeholder package data so foreign keys work before prices are loaded.
+- [x] Read-only `/ingredients` page (server component) reading from Supabase.
+- [ ] Apply the migration in Supabase (one-time, manual step — see workflow below).
+- [ ] Run the seed script after migration.
+- [ ] Add/edit drawer for ingredients (`shadcn/ui` Dialog + Form + Zod resolver).
+- [ ] `/recipes` — list grouped by category; recipe detail with ingredients editor.
+- [ ] Server Actions for create/update/delete with Zod validation.
+- [ ] Unit cost preview on recipe detail (uses current `package_price`).
+- [ ] Vitest tests: schema slug uniqueness, seed-script `slugify`, recipe-cost helper.
+
+#### Migration workflow (corp network workaround)
+
+Direct Postgres (`db.<ref>.supabase.co:5432`) is blocked by Zscaler, so we don't run `drizzle-kit push` locally. Instead:
+
+1. Edit `src/lib/db/schema.ts`.
+2. `pnpm db:generate` → produces a new SQL file in `migrations/`.
+3. Open Supabase Dashboard → **SQL Editor** → paste the SQL → **Run**.
+4. Commit the generated SQL so production / other devs see the same history.
+
+Once Phase 5 brings Vercel into the loop with `DATABASE_URL` in env, we can also run `drizzle-kit migrate` from a CI workflow as a backup.
 
 **Seed example (parsed from the message):**
 ```json
