@@ -163,6 +163,26 @@ export const priceHistory = pgTable("price_history", {
 	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
 });
 
+/**
+ * Phase 3: weekly meal planner.
+ *
+ * Each row is a single (date, slot, recipe) entry. The `slot` enum models
+ * the 3-meals-a-day rule the user gave us; `breakfast` is normally
+ * pre-filled with the constant `breakfast_daily` recipe but the table is
+ * generic so a future "swap breakfast" feature can override it.
+ */
+export const mealPlanEntries = pgTable("meal_plan_entries", {
+	id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+	date: text("date").notNull(), // ISO date (YYYY-MM-DD); typed loosely to avoid pg-date-string drama
+	slot: text("slot", { enum: ["breakfast", "lunch", "dinner"] }).notNull(),
+	recipeId: uuid("recipe_id")
+		.notNull()
+		.references(() => recipes.id, { onDelete: "cascade" }),
+	servings: integer("servings").notNull().default(1),
+	notes: text("notes"),
+	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
+});
+
 // Useful inferred types for use across the app.
 export type Ingredient = typeof ingredients.$inferSelect;
 export type NewIngredient = typeof ingredients.$inferInsert;
