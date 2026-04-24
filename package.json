@@ -17,7 +17,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"db:generate": "drizzle-kit generate",
-		"db:seed": "tsx scripts/seed.ts"
+		"db:seed": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} tsx scripts/seed.ts"
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.10.2",

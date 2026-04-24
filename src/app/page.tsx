@@ -27,6 +27,12 @@ export default function Home() {
 					>
 						Ingredients →
 					</Link>
+					<Link
+						href="/recipes"
+						className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-zinc-500"
+					>
+						Recipes →
+					</Link>
 				</div>
 			</header>
 
