@@ -13,13 +13,21 @@ export default function Home() {
 		<main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
 			<header className="space-y-2">
 				<p className="font-mono text-xs uppercase tracking-widest text-zinc-500">
-					Phase 0 · Bootstrap
+					Phase 1 · Catalogue
 				</p>
 				<h1 className="text-3xl font-semibold tracking-tight">SmartMealPlanner</h1>
 				<p className="text-zinc-400 text-sm leading-relaxed">
 					Personal meal planning, recipe costing, macro & micronutrient tracking, and grocery
 					shopping automation — with receipt-photo price ingestion powered by an LLM.
 				</p>
+				<div className="flex gap-3 pt-1">
+					<Link
+						href="/ingredients"
+						className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-zinc-500"
+					>
+						Ingredients →
+					</Link>
+				</div>
 			</header>
 
 			<section className="space-y-3">

@@ -14,8 +14,8 @@ export interface Phase {
 }
 
 export const phaseStatuses: readonly Phase[] = [
-	{ id: 0, title: "Bootstrap", status: "in-progress", desc: "Next.js + Tailwind + Biome + CI" },
-	{ id: 1, title: "Catalogue", status: "next", desc: "Ingredients & recipes CRUD" },
+	{ id: 0, title: "Bootstrap", status: "done", desc: "Next.js + Tailwind + Biome + CI" },
+	{ id: 1, title: "Catalogue", status: "in-progress", desc: "Ingredients & recipes CRUD" },
 	{ id: 2, title: "Costing & nutrition", status: "todo", desc: "€/plate, macros, micros" },
 	{ id: 3, title: "Planner & shopping list", status: "todo", desc: "Weekly plan → buy list" },
 	{ id: 4, title: "Receipt OCR", status: "todo", desc: "Photo → updated prices" },
