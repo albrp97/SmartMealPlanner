@@ -76,6 +76,19 @@ All values are editable in the Settings screen.
 
 ---
 
+## 3.b Current state (April 2026)
+
+Live at https://smart-meal-planner-iota.vercel.app/.
+
+| Page | What it does today |
+|------|--------------------|
+| `/ingredients` | Catalogue with **49 ingredients** + Lidl Prague 2026 default prices. Each row carries a `def`/`real` badge so we know which prices come from a real ticket and which are still estimates. |
+| `/recipes` and `/recipes/[slug]` | Full recipe detail — cost (proportional + shopping), kcal/macros per serving, micronutrient RDA bars, and a **day-projection** stacked bar (breakfast + this recipe + avg-other) versus a **Maintain / Cut / Bulk** goal. Cost section shows a `between X–Y` band proportional to how much of the recipe still uses default prices. |
+| `/plan` | **Mon–Sun calendar** for the current ISO week. Three slots per day (breakfast / lunch / dinner), inline picker, per-day kcal + protein vs goal. `breakfast_daily` is auto-pinned. |
+| `/shopping` | Aggregates the current week's plan into one row per ingredient, scaled by planned servings, with package-rounded quantities, total `consumed` vs `shopping` cost, and the % of cost still on default estimates. |
+
+---
+
 ## 4. Tech stack (100% free tier, 2026-modern)
 
 > Design rule: **TypeScript app code, Rust-powered tooling underneath.** Rust as the app language was considered and rejected — the bottleneck here is LLM and DB I/O, not CPU, and a JS frontend is unavoidable for a PWA. Rust appears via Biome, Turbopack and SWC, which give us the speed without the dev-velocity hit.

@@ -193,19 +193,35 @@ Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and**
 - [x] Cost: `mode = "shopping"` (round up to whole packages) added to [`src/lib/cost.ts`](src/lib/cost.ts) alongside the default `"consumed"` mode. Recipe page shows both the proportional total and the round-up total. Tested with 3 new shopping-mode cases (rounding 1.2→2, exact-match equivalence, single partial bag).
 - [x] Micros: [`lookupNutrition`](src/lib/nutrition-lookup.ts) now extracts `sodium_mg / calcium_mg / iron_mg / vitamin_c_mg` (g→mg) into a `micros` bag. The nutrition engine sums them as a sparse JSON record (`micros_per_100g` JSONB column already existed), the ingredient form persists them via a hidden field, and the recipe page renders RDA bars per serving with EU NRV references in [`src/lib/rda.ts`](src/lib/rda.ts). Backfill: `pnpm db:backfill-micros` filled 41/49 ingredients (8 skipped: GymBeam supplements + a couple of OFF entries with empty nutriments).
 
-### Phase 3 — Meal planner & shopping list
+### Phase 3 — Meal planner & shopping list — 🚧 in progress
 
 Goal: plan a week → generate a real shopping list.
 
-- [ ] `/plan` — weekly calendar (mobile: vertical list of days).
-- [ ] Drag/drop or tap-to-add recipes to slots; choose servings.
-- [ ] Daily macro **and micronutrient** summary bar with target vs actual; flag deficiencies (red) and excesses (amber, e.g. sodium).
-- [ ] `/shopping` — `Generate from plan` button:
-  - aggregates `recipe_ingredients × servings`
-  - subtracts pantry stock (if Phase 6 done, else skip)
-  - rounds up to package size → `packages_to_buy`
-  - estimates total cost
-- [ ] Export: copy as text, share to WhatsApp/Notes.
+- [x] **Schema** ([`migrations/0004_meal_plan.sql`](migrations/0004_meal_plan.sql) —
+  apply manually in Supabase SQL Editor): `meal_plan_entries(date, slot,
+  recipe_id, servings)` with a public-read RLS policy for the personal-use
+  phase. Drizzle table mirror in [`src/lib/db/schema.ts`](src/lib/db/schema.ts).
+- [x] **`/plan`** — Mon–Sun grid for the current ISO week (`?week=YYYY-MM-DD`
+  to override). Each day has three slots (breakfast/lunch/dinner) with an
+  inline picker (recipe + servings) backed by Server Actions in
+  [`src/app/plan/actions.ts`](src/app/plan/actions.ts). A 'seed breakfasts'
+  button pins `breakfast_daily` to every empty breakfast slot for the week
+  (idempotent). Per-day macro footer compares actual kcal/protein vs the
+  selected goal target (Maintain / Cut / Bulk pills, same TARGETS as the
+  recipe page). Helpers (date math, ISO week, shopping aggregation) live in
+  [`src/lib/plan.ts`](src/lib/plan.ts).
+- [x] **`/shopping`** — reads the meal plan for the current week, scales each
+  recipe line by `(planned_servings / recipe.servings)`, aggregates by
+  ingredient, rounds up to whole packages and totals 'consumed' vs
+  'shopping' cost. Each row carries the `def`/`real` price-source badge and
+  the page header surfaces 'X% of cost still on default estimates' so the
+  user knows how much of the bill is still uncertain. Vitest covers the ISO
+  week math + the aggregator (7 new cases, 35/35 total).
+- [ ] Drag/drop or tap-to-add recipes to slots; choose servings. *(MVP
+  uses native `<select>` + numeric input; drag/drop is post-MVP.)*
+- [ ] Daily **micronutrient** roll-up + deficiency / excess flags.
+- [ ] Subtract pantry stock once Phase 6 lands.
+- [ ] Export shopping list as text / share to WhatsApp/Notes.
 
 ### Phase 4 — Receipt OCR (LLM vision)
 
