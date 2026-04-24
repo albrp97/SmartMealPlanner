@@ -381,7 +381,7 @@ If Gemini free tier ever lapses → switch to OpenAI `gpt-4o-mini` (~ €0.0001 
 ## 8. Future improvements (post-v1)
 
 - Barcode scanning to add ingredients faster.
-- Voice input ("añade pollo en salsa al martes").
+- Voice input ("add chicken in sauce to Tuesday").
 - Nutritionix / OpenFoodFacts / USDA FDC integration to autofill macros and micronutrients.
 - Auto-import GymBeam supplement nutrition facts via product-page scraping.
 - Multi-store price comparison ("cheapest store for this week’s list").

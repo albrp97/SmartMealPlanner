@@ -35,7 +35,7 @@ export const ingredientCategories = pgTable("ingredient_categories", {
  * Ingredient catalogue.
  *
  * `package_size` + `package_unit` capture how the item is sold in store
- * (e.g. arroz: 1000 g; aguacate: 1 unit).
+ * (e.g. rice: 1000 g; avocado: 1 unit).
  * `package_price` is the price for one whole package, in `currency`.
  * Per-100g nutrition fields are nullable until we backfill from OpenFoodFacts.
  */
