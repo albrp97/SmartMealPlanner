@@ -123,15 +123,18 @@ Goal: full CRUD on ingredients and recipes, seeded from the user's list.
 - [x] Drizzle ORM schema in [`src/lib/db/schema.ts`](src/lib/db/schema.ts) — ingredient_categories, ingredients, recipe_categories, recipes, recipe_ingredients, stores, price_history.
 - [x] First migration generated → [`migrations/0000_tiny_masque.sql`](migrations/0000_tiny_masque.sql).
 - [x] Supabase clients: [`src/lib/db/client-server.ts`](src/lib/db/client-server.ts) (RSC + actions) and [`src/lib/db/client-browser.ts`](src/lib/db/client-browser.ts).
-- [x] Seed script in [`scripts/seed.ts`](scripts/seed.ts) — idempotent upsert of categories, ingredients, recipes, recipe_ingredients, price_history. Stubs missing ingredients with placeholder package data so foreign keys work before prices are loaded.
+- [x] Seed script in [`scripts/seed.ts`](scripts/seed.ts) — idempotent upsert of categories, ingredients, recipes, recipe_ingredients, price_history. Stubs missing ingredients with placeholder package data so foreign keys work before prices are loaded. Auto-loads `.env.local` and pins `NODE_EXTRA_CA_CERTS` so it works behind corp TLS interception.
+- [x] Seed data translated to English; units normalised to `g | ml | unit`.
+- [x] Migration applied in Supabase (one-time, manual via SQL Editor).
+- [x] Seed run successfully — **49 ingredients · 21 recipes · 89 recipe_ingredients · 24 price snapshots · 1 store**.
 - [x] Read-only `/ingredients` page (server component) reading from Supabase.
-- [ ] Apply the migration in Supabase (one-time, manual step — see workflow below).
-- [ ] Run the seed script after migration.
-- [ ] Add/edit drawer for ingredients (`shadcn/ui` Dialog + Form + Zod resolver).
-- [ ] `/recipes` — list grouped by category; recipe detail with ingredients editor.
-- [ ] Server Actions for create/update/delete with Zod validation.
-- [ ] Unit cost preview on recipe detail (uses current `package_price`).
-- [ ] Vitest tests: schema slug uniqueness, seed-script `slugify`, recipe-cost helper.
+- [x] **Add/edit ingredient form** — Server Action + Zod validation ([`src/lib/validators.ts`](src/lib/validators.ts)) wired with React 19 `useActionState`. Routes: `/ingredients/new`, `/ingredients/[id]/edit`. Native HTML elements for now; shadcn/ui swap is a cosmetic refactor for later.
+- [x] **Recipe pages** — `/recipes` lists recipes grouped by category; `/recipes/[slug]` shows ingredients with quantities and a **live cost preview** (total + per-serving) computed from current `package_price`.
+- [x] **Cost helper** ([`src/lib/cost.ts`](src/lib/cost.ts)) — proportional per-line cost (`needed / package_size × package_price`), no implicit unit conversion, flags lines with missing prices or mismatched units.
+- [x] Vitest tests for `slugify` + `computeRecipeCost` (13 tests passing).
+- [ ] Recipe ingredients editor (add/remove rows on the detail page).
+- [ ] Add/edit recipe form (mirror of the ingredient one).
+- [ ] Optional polish: install **shadcn/ui** primitives and replace the hand-rolled inputs.
 
 #### Migration workflow (corp network workaround)
 
@@ -144,22 +147,26 @@ Direct Postgres (`db.<ref>.supabase.co:5432`) is blocked by Zscaler, so we don't
 
 Once Phase 5 brings Vercel into the loop with `DATABASE_URL` in env, we can also run `drizzle-kit migrate` from a CI workflow as a backup.
 
-**Seed example (parsed from the message):**
+#### Seed format (English, post-translation)
+
 ```json
 {
-  "category": "Curry",
-  "name": "Indio",
-  "servings": 2,
+  "id": "indian_curry",
+  "name": "Indian curry",
+  "category_id": "curry",
+  "meal_type": "single_meal",
+  "servings_estimated": 1,
   "ingredients": [
-    {"name": "arroz", "qty": 80, "unit": "g"},
-    {"name": "pollo", "qty": 100, "unit": "g"},
-    {"name": "tomate frito", "qty": 1, "unit": "unit"},
-    {"name": "cerveza", "qty": 1, "unit": "unit"},
-    {"name": "yogurt", "qty": 1, "unit": "unit"},
-    {"name": "zanahoria", "qty": 1, "unit": "unit"}
+    { "name": "rice",         "quantity": 80,  "unit": "g" },
+    { "name": "chicken",      "quantity": 100, "unit": "g" },
+    { "name": "tomato sauce", "quantity": 1,   "unit": "unit" },
+    { "name": "yogurt",       "quantity": 1,   "unit": "unit" },
+    { "name": "carrot",       "quantity": 1,   "unit": "unit" }
   ]
 }
 ```
+
+> **Hard rule:** `unit` must be one of `g | ml | unit` — no `lata`, `cucharadita`, `bote`, etc. The seed script does *not* convert; ambiguous quantities should be expressed in grams or millilitres with the original wording in `note`.
 
 ### Phase 2 — Costing, macros & micronutrients engine
 

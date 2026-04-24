@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createClient } from "@supabase/supabase-js";
 /**
  * One-shot seed script.
  *
@@ -11,10 +14,11 @@
  * client which bypasses Row Level Security (necessary for writes before any
  * user is authenticated).
  */
-import "dotenv/config";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { config as loadEnv } from "dotenv";
+
+// Next.js convention: .env.local overrides .env. Load both, .env.local last.
+loadEnv({ path: resolve(process.cwd(), ".env") });
+loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

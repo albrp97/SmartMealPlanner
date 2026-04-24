@@ -191,10 +191,17 @@ Requires **Node 20+** and **pnpm 9+** (`corepack enable && corepack prepare pnpm
 ```bash
 git clone https://github.com/albrp97/SmartMealPlanner.git
 cd SmartMealPlanner
-cp .env.example .env.local        # leave blank for Phase 0; fill in from Phase 1 onwards
+cp .env.example .env.local        # fill in NEXT_PUBLIC_SUPABASE_URL / ANON_KEY (and SERVICE_ROLE_KEY if you want to seed)
 pnpm install
 pnpm dev                          # http://localhost:3000 (Turbopack)
 ```
+
+Database setup (one-off):
+
+1. Create a free Supabase project, copy the URL + anon key + `service_role` key into `.env.local`.
+2. Open the **SQL Editor** in the Supabase dashboard, paste the contents of [migrations/0000_tiny_masque.sql](migrations/0000_tiny_masque.sql), and Run.
+   *(Direct `drizzle-kit push` is not used because corp networks often block port 5432.)*
+3. `pnpm db:seed` — populates ingredients, recipes and prices from `seed/*.json`.
 
 Useful scripts:
 
@@ -207,6 +214,8 @@ Useful scripts:
 | `pnpm format` | Biome auto-format. |
 | `pnpm test` | Vitest (run mode). |
 | `pnpm ci:check` | What CI runs (Biome). |
+| `pnpm db:generate` | Regenerate SQL migration from `src/lib/db/schema.ts`. |
+| `pnpm db:seed` | Idempotent seed of ingredients/recipes/prices via Supabase REST. |
 
 Deploy:
 
