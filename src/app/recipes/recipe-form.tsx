@@ -1,5 +1,6 @@
 "use client";
 
+import { slugify } from "@/lib/slugify";
 import { MEAL_TYPES, PACKAGE_UNITS } from "@/lib/validators";
 import { useActionState, useState } from "react";
 import { type RecipeActionResult, createRecipe, updateRecipe } from "./actions";
@@ -49,6 +50,10 @@ export function RecipeForm({
 }) {
 	const action = mode === "edit" && initial ? updateRecipe.bind(null, initial.id) : createRecipe;
 	const [state, formAction, pending] = useActionState(action, INITIAL_RESULT);
+
+	const [name, setName] = useState(initial?.name ?? "");
+	const [slug, setSlug] = useState(initial?.slug ?? "");
+	const [slugTouched, setSlugTouched] = useState(mode === "edit");
 
 	const [lines, setLines] = useState<Line[]>(
 		initial?.ingredients.map((l) => ({
@@ -101,12 +106,38 @@ export function RecipeForm({
 			) : null}
 
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<Field label="Name" name="name" defaultValue={initial?.name} error={err("name")} required />
-				<Field label="Slug" name="slug" defaultValue={initial?.slug} error={err("slug")} required />
+				<Field
+					label="Name"
+					name="name"
+					value={name}
+					onChange={(v) => {
+						setName(v);
+						if (!slugTouched) setSlug(slugify(v));
+					}}
+					placeholder="chicken curry"
+					hint="Display name. Example: chicken curry"
+					error={err("name")}
+					required
+				/>
+				<Field
+					label="Slug"
+					name="slug"
+					value={slug}
+					onChange={(v) => {
+						setSlugTouched(true);
+						setSlug(v);
+					}}
+					placeholder="chicken_curry"
+					hint="URL-safe id (snake_case). Auto-filled from name. Example: chicken_curry"
+					error={err("slug")}
+					required
+				/>
 				<Field
 					label="Category"
 					name="category_id"
 					defaultValue={initial?.category_id ?? ""}
+					placeholder="main"
+					hint="Free-form group. Example: main, side, breakfast"
 					error={err("category_id")}
 				/>
 				<Select
@@ -114,6 +145,7 @@ export function RecipeForm({
 					name="meal_type"
 					defaultValue={initial?.meal_type ?? "unknown"}
 					options={MEAL_TYPES}
+					hint="single_meal = eaten once; batch = leftovers planned"
 					error={err("meal_type")}
 				/>
 				<Field
@@ -122,6 +154,8 @@ export function RecipeForm({
 					type="number"
 					min="1"
 					defaultValue={String(initial?.servings ?? 1)}
+					placeholder="4"
+					hint="How many portions the recipe yields. Example: 4"
 					error={err("servings")}
 					required
 				/>
@@ -131,6 +165,8 @@ export function RecipeForm({
 					type="number"
 					min="0"
 					defaultValue={initial?.prep_minutes?.toString() ?? ""}
+					placeholder="15"
+					hint="Hands-on time before cooking, in minutes"
 					error={err("prep_minutes")}
 				/>
 				<Field
@@ -139,6 +175,8 @@ export function RecipeForm({
 					type="number"
 					min="0"
 					defaultValue={initial?.cook_minutes?.toString() ?? ""}
+					placeholder="25"
+					hint="Time on the stove / in the oven, in minutes"
 					error={err("cook_minutes")}
 				/>
 			</div>
@@ -286,8 +324,13 @@ function Field(props: {
 	min?: string;
 	required?: boolean;
 	defaultValue?: string;
+	value?: string;
+	onChange?: (v: string) => void;
+	placeholder?: string;
+	hint?: string;
 	error?: string;
 }) {
+	const controlled = props.value !== undefined && props.onChange !== undefined;
 	return (
 		<label className="block space-y-1">
 			<span className="block text-xs uppercase tracking-wider text-zinc-400">
@@ -298,10 +341,16 @@ function Field(props: {
 				name={props.name}
 				type={props.type ?? "text"}
 				min={props.min}
-				defaultValue={props.defaultValue}
+				placeholder={props.placeholder}
+				{...(controlled
+					? { value: props.value, onChange: (e) => props.onChange?.(e.target.value) }
+					: { defaultValue: props.defaultValue })}
 				required={props.required}
 				className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
 			/>
+			{props.hint && !props.error ? (
+				<span className="block text-[11px] text-zinc-500">{props.hint}</span>
+			) : null}
 			{props.error ? <span className="block text-xs text-red-400">{props.error}</span> : null}
 		</label>
 	);
@@ -312,6 +361,7 @@ function Select(props: {
 	name: string;
 	defaultValue: string;
 	options: readonly string[];
+	hint?: string;
 	error?: string;
 }) {
 	return (
@@ -328,6 +378,9 @@ function Select(props: {
 					</option>
 				))}
 			</select>
+			{props.hint && !props.error ? (
+				<span className="block text-[11px] text-zinc-500">{props.hint}</span>
+			) : null}
 			{props.error ? <span className="block text-xs text-red-400">{props.error}</span> : null}
 		</label>
 	);
