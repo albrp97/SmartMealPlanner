@@ -1,5 +1,6 @@
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
+import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -12,6 +13,14 @@ interface IngredientForCost {
 	package_unit: "g" | "ml" | "unit";
 	package_price: number | null;
 	currency: string;
+	is_supplement: boolean;
+	g_per_unit: number | null;
+	density_g_per_ml: number | null;
+	kcal_per_100g: number | null;
+	protein_per_100g: number | null;
+	carbs_per_100g: number | null;
+	fat_per_100g: number | null;
+	fiber_per_100g: number | null;
 }
 
 interface RecipeIngredientRow {
@@ -43,7 +52,7 @@ export default async function RecipeDetailPage({
 	const { data: linesRaw } = await supabase
 		.from("recipe_ingredients")
 		.select(
-			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, currency)",
+			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g)",
 		)
 		.eq("recipe_id", recipe.id)
 		.order("position");
@@ -67,6 +76,27 @@ export default async function RecipeDetailPage({
 
 	const cost = computeRecipeCost(costInputs);
 	const perServing = recipe.servings > 0 ? cost.total / recipe.servings : cost.total;
+
+	const nutritionInputs: NutritionLineInput[] = lines
+		.filter(
+			(l): l is RecipeIngredientRow & { ingredients: IngredientForCost } => l.ingredients !== null,
+		)
+		.map((l) => ({
+			ingredient: {
+				isSupplement: l.ingredients.is_supplement,
+				gPerUnit: l.ingredients.g_per_unit,
+				densityGPerMl: l.ingredients.density_g_per_ml,
+				kcalPer100g: l.ingredients.kcal_per_100g,
+				proteinPer100g: l.ingredients.protein_per_100g,
+				carbsPer100g: l.ingredients.carbs_per_100g,
+				fatPer100g: l.ingredients.fat_per_100g,
+				fiberPer100g: l.ingredients.fiber_per_100g,
+			},
+			quantity: l.quantity,
+			unit: l.unit,
+		}));
+
+	const nutrition = computeRecipeNutrition(nutritionInputs, recipe.servings);
 
 	return (
 		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
@@ -103,6 +133,40 @@ export default async function RecipeDetailPage({
 				</p>
 				<p className="font-mono text-xs text-zinc-500">
 					≈ {perServing.toFixed(2)} {cost.currency} / serving
+				</p>
+			</section>
+
+			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+				<div className="flex items-baseline justify-between">
+					<h2 className="text-sm font-medium text-zinc-300">Nutrition / serving</h2>
+					{nutrition.missing ? (
+						<span className="font-mono text-[10px] uppercase tracking-wider text-amber-400">
+							partial — some ingredients missing data
+						</span>
+					) : null}
+				</div>
+				<p className="mt-2 font-mono text-2xl text-sky-300">{nutrition.perServing.kcal} kcal</p>
+				<dl className="mt-2 grid grid-cols-4 gap-2 font-mono text-xs text-zinc-400">
+					<div>
+						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Protein</dt>
+						<dd>{nutrition.perServing.protein} g</dd>
+					</div>
+					<div>
+						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Carbs</dt>
+						<dd>{nutrition.perServing.carbs} g</dd>
+					</div>
+					<div>
+						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Fat</dt>
+						<dd>{nutrition.perServing.fat} g</dd>
+					</div>
+					<div>
+						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Fibre</dt>
+						<dd>{nutrition.perServing.fiber} g</dd>
+					</div>
+				</dl>
+				<p className="mt-2 font-mono text-[10px] text-zinc-600">
+					Batch total: {nutrition.total.kcal} kcal · {nutrition.total.protein} g P ·{" "}
+					{nutrition.total.carbs} g C · {nutrition.total.fat} g F
 				</p>
 			</section>
 

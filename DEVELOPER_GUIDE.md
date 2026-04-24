@@ -171,18 +171,26 @@ Once Phase 5 brings Vercel into the loop with `DATABASE_URL` in env, we can also
 
 > **Hard rule:** `unit` must be one of `g | ml | unit` — no `lata`, `cucharadita`, `bote`, etc. The seed script does *not* convert; ambiguous quantities should be expressed in grams or millilitres with the original wording in `note`.
 
-### Phase 2 — Costing, macros & micronutrients engine
+### Phase 2 — Costing, macros & micronutrients engine — 🚧 in progress
 
 Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and** micronutrients/plate.
 
-- [ ] `lib/units.ts`: convert between g/ml/unit using ingredient metadata.
-- [ ] `lib/nutrition.ts`:
-  - per-recipe nutrition (macros + fibre + micros);
-  - per-plate division;
-  - supplements use **per-serving** values (not per-100 g) when `is_supplement = true`.
-- [ ] `lib/cost.ts`: per-recipe cost, accounting for **package rounding** when `mode = "shopping"` vs raw cost when `mode = "consumed"`.
-- [ ] Display on recipe page: badge with €/plate, kcal/plate, and a collapsible micro panel (% of RDA bars).
-- [ ] Seed micronutrient data from **OpenFoodFacts** / **USDA FDC** for whole foods, and from **GymBeam product pages** for supplements.
+> **Quantity convention (hard rule).** Quantities in `recipe_ingredients`
+> are for the **whole cook** (the batch), not per plate. The pizza recipe
+> with 4 servings stores the dough/topping for the whole pizza; per-plate
+> values are computed by dividing by `recipes.servings`. Supplements are
+> the only exception — for `is_supplement = true`, `quantity` is the number
+> of servings consumed (1 unit = 1 scoop = 1 serving).
+
+- [x] [`src/lib/units.ts`](src/lib/units.ts): `toGrams(quantity, unit, ingredient)` with rules — `g` identity, `ml × density_g_per_ml` (fallback 1.0, flagged), `unit × g_per_unit` (null with `missing_g_per_unit` reason if absent).
+- [x] Schema: nullable `g_per_unit` and `density_g_per_ml` columns on `ingredients` ([`migrations/0001_unit_conversion.sql`](migrations/0001_unit_conversion.sql) — apply manually in Supabase SQL Editor).
+- [x] [`src/lib/nutrition.ts`](src/lib/nutrition.ts): `computeRecipeNutrition(lines, servings)` returns `{ total, perServing, lines, missing }` with rounded macros. Supplements treated per-serving; whole foods scaled by `grams / 100`.
+- [x] Vitest: 5 unit tests + 6 nutrition tests covering g/ml/unit conversion, supplements, missing data, zero servings.
+- [x] Recipe detail page badge: kcal/serving + protein/carbs/fat/fibre + batch total, with a "partial" warning when any ingredient is missing data.
+- [ ] Recipe list page: kcal/serving column (needs a single nested query — deferred until N+1 stays green).
+- [ ] Cost: `mode = "shopping"` (round up to packages) vs `mode = "consumed"` (current proportional behaviour).
+- [ ] Micros: extend `lookupNutrition` and the schema to surface sodium / iron / vitamin C / calcium; render as % of RDA bars on the recipe page.
+- [ ] Backfill `g_per_unit` for the most-used unit-priced ingredients (egg, onion, bell pepper, carrot, potato, tortilla wrap, tuna can, beer, yogurt, cream, beans, etc.) — likely a one-shot script with sensible defaults the user can tweak in the form.
 
 ### Phase 3 — Meal planner & shopping list
 
