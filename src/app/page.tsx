@@ -20,20 +20,6 @@ export default function Home() {
 					Personal meal planning, recipe costing, macro & micronutrient tracking, and grocery
 					shopping automation — with receipt-photo price ingestion powered by an LLM.
 				</p>
-				<div className="flex gap-3 pt-1">
-					<Link
-						href="/ingredients"
-						className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-zinc-500"
-					>
-						Ingredients →
-					</Link>
-					<Link
-						href="/recipes"
-						className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-zinc-500"
-					>
-						Recipes →
-					</Link>
-				</div>
 			</header>
 
 			<section className="space-y-3">

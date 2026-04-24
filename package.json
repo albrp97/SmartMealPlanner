@@ -7,8 +7,8 @@
 		"node": ">=20"
 	},
 	"scripts": {
-		"dev": "next dev --turbopack",
-		"build": "next build",
+		"dev": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} next dev --turbopack",
+		"build": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} next build",
 		"start": "next start",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",

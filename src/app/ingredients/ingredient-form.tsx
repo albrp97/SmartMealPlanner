@@ -15,6 +15,7 @@
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Select, Textarea } from "@/components/ui/field";
+import { slugify } from "@/lib/slugify";
 import { useActionState, useState, useTransition } from "react";
 import {
 	type ActionResult,
@@ -61,6 +62,11 @@ export function IngredientForm({ mode, initial }: Props) {
 		mode === "edit" && initial ? updateIngredient.bind(null, initial.id) : createIngredient;
 	const [state, formAction, pending] = useActionState(action, INITIAL);
 	const [name, setName] = useState(initial?.name ?? "");
+	const [slug, setSlug] = useState(initial?.slug ?? "");
+	// Track whether the user has manually touched the slug. Until they do, we
+	// keep the slug in sync with `slugify(name)` so creating ingredients is
+	// effectively one-field.
+	const [slugTouched, setSlugTouched] = useState(mode === "edit");
 	const [nutrition, setNutrition] = useState<NutritionState>(() => nutritionFromInitial(initial));
 	const [lookupHint, setLookupHint] = useState<LookupHint | null>(null);
 	const [lookupError, setLookupError] = useState<string | null>(null);
@@ -127,27 +133,73 @@ export function IngredientForm({ mode, initial }: Props) {
 				</CardHeader>
 
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<FormRow label="Name" required error={err("name")}>
-						<Input name="name" value={name} onChange={(e) => setName(e.target.value)} required />
+					<FormRow
+						label="Name"
+						required
+						hint="Display name. Example: chicken breast"
+						error={err("name")}
+					>
+						<Input
+							name="name"
+							value={name}
+							onChange={(e) => {
+								const v = e.target.value;
+								setName(v);
+								if (!slugTouched) setSlug(slugify(v));
+							}}
+							placeholder="chicken breast"
+							required
+						/>
 					</FormRow>
-					<FormRow label="Slug" required error={err("slug")}>
-						<Input name="slug" defaultValue={initial?.slug} required />
+					<FormRow
+						label="Slug"
+						required
+						hint="URL-safe id (snake_case). Auto-filled from name. Example: chicken_breast"
+						error={err("slug")}
+					>
+						<Input
+							name="slug"
+							value={slug}
+							onChange={(e) => {
+								setSlugTouched(true);
+								setSlug(e.target.value);
+							}}
+							placeholder="chicken_breast"
+							pattern="^[a-z0-9_]+$"
+							required
+						/>
 					</FormRow>
 
-					<FormRow label="Category" error={err("category_id")}>
-						<Input name="category_id" defaultValue={initial?.category_id ?? ""} />
+					<FormRow
+						label="Category"
+						hint="Free-form group. Example: meat, vegetable, supplement"
+						error={err("category_id")}
+					>
+						<Input
+							name="category_id"
+							defaultValue={initial?.category_id ?? ""}
+							placeholder="meat"
+						/>
 					</FormRow>
-					<FormRow label="Brand" error={err("brand")}>
-						<Input name="brand" defaultValue={initial?.brand ?? ""} />
+					<FormRow label="Brand" hint="Optional. Example: Tilda" error={err("brand")}>
+						<Input name="brand" defaultValue={initial?.brand ?? ""} placeholder="Tilda" />
 					</FormRow>
 
-					<FormRow label="Sold as" error={err("sold_as")}>
+					<FormRow
+						label="Sold as"
+						hint="How you buy it: a package (eg 500 g bag) or per unit (eg 1 egg)"
+						error={err("sold_as")}
+					>
 						<Select name="sold_as" defaultValue={initial?.sold_as ?? "package"}>
 							<option value="package">package</option>
 							<option value="unit">unit</option>
 						</Select>
 					</FormRow>
-					<FormRow label="Package unit" error={err("package_unit")}>
+					<FormRow
+						label="Package unit"
+						hint="Measurement unit of the package size below"
+						error={err("package_unit")}
+					>
 						<Select name="package_unit" defaultValue={initial?.package_unit ?? "g"}>
 							<option value="g">g</option>
 							<option value="ml">ml</option>
@@ -155,26 +207,46 @@ export function IngredientForm({ mode, initial }: Props) {
 						</Select>
 					</FormRow>
 
-					<FormRow label="Package size" required error={err("package_size")}>
+					<FormRow
+						label="Package size"
+						required
+						hint="How much is in one package, in the unit above. Example: 500"
+						error={err("package_size")}
+					>
 						<Input
 							name="package_size"
 							type="number"
 							step="0.01"
 							defaultValue={initial?.package_size?.toString() ?? ""}
+							placeholder="500"
 							required
 						/>
 					</FormRow>
-					<FormRow label="Package price" error={err("package_price")}>
+					<FormRow
+						label="Package price"
+						hint="What you pay for one package. Example: 89.90"
+						error={err("package_price")}
+					>
 						<Input
 							name="package_price"
 							type="number"
 							step="0.01"
 							defaultValue={initial?.package_price?.toString() ?? ""}
+							placeholder="89.90"
 						/>
 					</FormRow>
 
-					<FormRow label="Currency" error={err("currency")}>
-						<Input name="currency" defaultValue={initial?.currency ?? "CZK"} />
+					<FormRow
+						label="Currency"
+						hint="3-letter ISO code. Example: CZK, EUR, USD"
+						error={err("currency")}
+					>
+						<Input
+							name="currency"
+							defaultValue={initial?.currency ?? "CZK"}
+							placeholder="CZK"
+							maxLength={3}
+						/>
 					</FormRow>
 
 					<label className="mt-6 flex items-center gap-2 text-sm text-zinc-300">
@@ -284,11 +356,13 @@ export function IngredientForm({ mode, initial }: Props) {
 function FormRow({
 	label,
 	required,
+	hint,
 	error,
 	children,
 }: {
 	label: string;
 	required?: boolean;
+	hint?: string;
 	error?: string;
 	children: React.ReactNode;
 }) {
@@ -299,6 +373,7 @@ function FormRow({
 				{required ? <span className="text-red-400"> *</span> : null}
 			</Label>
 			{children}
+			{hint && !error ? <p className="text-[11px] text-zinc-500">{hint}</p> : null}
 			<FieldError>{error}</FieldError>
 		</div>
 	);
