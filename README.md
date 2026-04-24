@@ -28,7 +28,7 @@ Cooking decisions take time every single day:
 
 | # | Feature | Description |
 |---|---------|-------------|
-| 1 | **Recipe library** | Hierarchical categories (e.g. `Curry → Indio`, `Arroz con carne → Risotto`). Each recipe stores ingredients, quantities per ingredient, servings produced, prep/cook time, and nutrition. |
+| 1 | **Recipe library** | Hierarchical categories (e.g. `Curry → Indian`, `Rice with meat → Risotto`). Each recipe stores ingredients, quantities per ingredient, servings produced, prep/cook time, and nutrition. |
 | 2 | **Ingredient catalogue** | Master list with default unit, package size sold in store, and current price. |
 | 3 | **Price history** | Every price update is timestamped + tagged with store + city, so we keep a full historical record. |
 | 4 | **Receipt OCR** | Take a photo of a supermarket ticket → LLM (vision) extracts items, quantities and prices → ingredient prices auto-update. |
@@ -154,14 +154,14 @@ ingredients
                                --   potassium_mg, sodium_mg, omega3_mg, ... }
   is_supplement boolean, brand text   -- e.g. GymBeam; supplements use per-serving values
 
-recipe_categories             (curry, pasta, arroz_con_carne, …)
+recipe_categories             (curry, pasta, rice_with_meat, …)
 recipes
   id, name, category_id, servings, instructions_md,
   prep_minutes, cook_minutes
 recipe_ingredients
   recipe_id, ingredient_id, quantity, unit, notes
 
-stores                        (Mercadona-Centro, Lidl-Norte, …)
+stores                        (Tesco-Centre, Lidl-North, …)
 price_history
   id, ingredient_id, store_id, city, price, currency, observed_at, source ('receipt'|'manual')
 
