@@ -1,0 +1,362 @@
+{
+  "$schema_version": "0.1.0",
+  "notes": [
+    "Seed file parsed from the user's original WhatsApp-style message.",
+    "Quantities preserved verbatim where possible. When the message did not specify a unit, 'unit' is used (e.g. 1 cebolla = 1 unit).",
+    "'completeness' values: 'complete' = all ingredients listed; 'partial' = some ingredients missing; 'empty' = only the name was given, no ingredients.",
+    "'meal_type' values: 'single_meal' = recipe yields ~1 plate as written; 'batch' = recipe is meant to be cooked in a pot/pan and split into several plates; 'unknown' = not explicit in the source.",
+    "'servings_estimated' is a best-guess number of plates the recipe yields; mark 'servings_confirmed': false until the user confirms.",
+    "Default category is the parent group from the original message (e.g. 'Curry', 'Arroz con carne').",
+    "Ingredient names are kept in Spanish to match the user's vocabulary; normalisation to a canonical ingredient catalogue happens later in code."
+  ],
+  "categories": [
+    { "id": "empanada",         "name": "Empanada" },
+    { "id": "noodles",          "name": "Noodles" },
+    { "id": "curry",            "name": "Curry" },
+    { "id": "arroz_con_carne",  "name": "Arroz con carne" },
+    { "id": "pasta",            "name": "Pasta" },
+    { "id": "horno",            "name": "Horno" },
+    { "id": "guisos",           "name": "Guisos" },
+    { "id": "street_food",      "name": "Street food" },
+    { "id": "pizza",            "name": "Pizza" },
+    { "id": "breakfast",        "name": "Breakfast" }
+  ],
+  "recipes": [
+    {
+      "id": "breakfast_daily",
+      "name": "Daily breakfast",
+      "category_id": "breakfast",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": true,
+      "completeness": "complete",
+      "frequency": "daily",
+      "notes": [
+        "Eaten every morning.",
+        "All supplements are from GymBeam — exact macros/micros to be pulled from the GymBeam product pages once the ingredient catalogue is wired up.",
+        "'Hand of X' is a rough portion; treat as ~30 g for nuts and dried fruit until the user weighs a real serving."
+      ],
+      "ingredients": [
+        { "name": "oatmeal",                   "quantity": 40,  "unit": "g" },
+        { "name": "cashews",                   "quantity": 30,  "unit": "g",  "note": "approx. 1 hand — to be calibrated" },
+        { "name": "dried sweetened cranberries", "quantity": 30, "unit": "g", "note": "approx. 1 hand — to be calibrated" },
+        { "name": "jumbo raisins",             "quantity": 30,  "unit": "g",  "note": "approx. 1 hand — to be calibrated" },
+        { "name": "creatine monohydrate (GymBeam)", "quantity": 5, "unit": "g",  "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
+        { "name": "whey protein (GymBeam)",    "quantity": 30,  "unit": "g",  "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
+        { "name": "yogurt 3.9% fat",           "quantity": 130, "unit": "g" },
+        { "name": "milk 3.5% fat",             "quantity": 30,  "unit": "ml", "note": "a splash — assume ~30 ml, to be calibrated" },
+        { "name": "multivitamin (GymBeam)",    "quantity": 1,   "unit": "unit", "supplement": true, "brand": "GymBeam" },
+        { "name": "omega 3 (GymBeam)",         "quantity": 2,   "unit": "unit", "supplement": true, "brand": "GymBeam" },
+        { "name": "vitamin D3 + K2 (GymBeam)", "quantity": 1,   "unit": "unit", "supplement": true, "brand": "GymBeam" },
+        { "name": "magnesium bisglycinate (GymBeam)", "quantity": 2, "unit": "unit", "supplement": true, "brand": "GymBeam" }
+      ]
+    },
+    {
+      "id": "empanada_carne",
+      "name": "Empanada de carne",
+      "category_id": "empanada",
+      "meal_type": "batch",
+      "servings_estimated": 4,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["sal", "aceite", "especias"],
+      "base": { "ingredient": "milhojas", "quantity": 2, "unit": "unit", "note": "shared base for any empanada" },
+      "ingredients": [
+        { "name": "milhojas",        "quantity": 2,   "unit": "unit" },
+        { "name": "cebolla",         "quantity": 1,   "unit": "unit" },
+        { "name": "pimiento",        "quantity": 0.5, "unit": "unit" },
+        { "name": "carne picada",    "quantity": 500, "unit": "g" },
+        { "name": "tomate frito",    "quantity": 1,   "unit": "unit", "note": "approx. 1 small tin/jar" },
+        { "name": "cerveza",         "quantity": 0.5, "unit": "unit" }
+      ]
+    },
+    {
+      "id": "empanada_pollo",
+      "name": "Empanada de pollo",
+      "category_id": "empanada",
+      "meal_type": "batch",
+      "servings_estimated": 4,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["sal", "aceite", "especias"],
+      "base": { "ingredient": "milhojas", "quantity": 2, "unit": "unit" },
+      "ingredients": [
+        { "name": "milhojas",     "quantity": 2,   "unit": "unit" },
+        { "name": "cebolla",      "quantity": 2,   "unit": "unit" },
+        { "name": "pollo",        "quantity": 500, "unit": "g" },
+        { "name": "nata",         "quantity": 1,   "unit": "unit", "note": "quantity not specified — assume 1 small carton (~200 ml)" },
+        { "name": "champiñones",  "quantity": 1,   "unit": "unit", "note": "quantity not specified" }
+      ]
+    },
+    {
+      "id": "empanada_atun",
+      "name": "Empanada de atún",
+      "category_id": "empanada",
+      "meal_type": "batch",
+      "servings_estimated": 4,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["sal", "aceite", "especias"],
+      "base": { "ingredient": "milhojas", "quantity": 2, "unit": "unit" },
+      "ingredients": [
+        { "name": "milhojas",     "quantity": 2, "unit": "unit" },
+        { "name": "atún",         "quantity": 2, "unit": "lata" },
+        { "name": "huevo",        "quantity": 4, "unit": "unit" },
+        { "name": "tomate frito", "quantity": 1, "unit": "unit" }
+      ]
+    },
+    {
+      "id": "noodles",
+      "name": "Noodles",
+      "category_id": "noodles",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "noodles",   "quantity": 125,         "unit": "g" },
+        { "name": "col",       "quantity": 1,           "unit": "unit", "note": "quantity not specified — assume a handful" },
+        { "name": "pimiento",  "quantity": 0.3333333,   "unit": "unit" },
+        { "name": "cebolla",   "quantity": 0.5,         "unit": "unit" },
+        { "name": "pollo",     "quantity": 100,         "unit": "g" },
+        { "name": "zanahoria", "quantity": 1,           "unit": "unit" }
+      ]
+    },
+    {
+      "id": "curry_indio",
+      "name": "Curry Indio",
+      "category_id": "curry",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "arroz",        "quantity": 80,  "unit": "g" },
+        { "name": "pollo",        "quantity": 100, "unit": "g" },
+        { "name": "tomate frito", "quantity": 1,   "unit": "unit" },
+        { "name": "cerveza",      "quantity": 1,   "unit": "unit" },
+        { "name": "yogurt",       "quantity": 1,   "unit": "unit" },
+        { "name": "zanahoria",    "quantity": 1,   "unit": "unit" }
+      ]
+    },
+    {
+      "id": "curry_japones",
+      "name": "Curry Japonés",
+      "category_id": "curry",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "arroz",        "quantity": 80,  "unit": "g" },
+        { "name": "pollo",        "quantity": 100, "unit": "g" },
+        { "name": "zanahoria",    "quantity": 1,   "unit": "unit" },
+        { "name": "cebolla",      "quantity": 0.5, "unit": "unit" },
+        { "name": "patata",       "quantity": 0.5, "unit": "unit" },
+        { "name": "miel",         "quantity": 1,   "unit": "cucharadita" },
+        { "name": "golden curry", "quantity": 1,   "unit": "trozo" },
+        { "name": "avecrem",      "quantity": 1,   "unit": "unit", "note": "quantity not specified" }
+      ]
+    },
+    {
+      "id": "arroz_higados",
+      "name": "Arroz con hígados",
+      "category_id": "arroz_con_carne",
+      "meal_type": "batch",
+      "servings_estimated": 4,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "hígados",      "quantity": 250, "unit": "g" },
+        { "name": "pollo",        "quantity": 250, "unit": "g" },
+        { "name": "arroz",        "quantity": 300, "unit": "g" },
+        { "name": "tomate",       "quantity": 1,   "unit": "unit" },
+        { "name": "cebolla",      "quantity": 2,   "unit": "unit" },
+        { "name": "pimiento",     "quantity": 1,   "unit": "unit" },
+        { "name": "cerveza",      "quantity": 1,   "unit": "unit" },
+        { "name": "tomate frito", "quantity": 1,   "unit": "unit" }
+      ]
+    },
+    {
+      "id": "arroz_cerdo",
+      "name": "Arroz con cerdo",
+      "category_id": "arroz_con_carne",
+      "meal_type": "batch",
+      "servings_estimated": 4,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["cebolla?", "pimiento?", "tomate frito?"],
+      "ingredients": [
+        { "name": "cerdo",   "quantity": 250, "unit": "g" },
+        { "name": "chorizo", "quantity": 1,   "unit": "unit" },
+        { "name": "arroz",   "quantity": 300, "unit": "g" },
+        { "name": "tomate",  "quantity": 1,   "unit": "unit" },
+        { "name": "cerveza", "quantity": 1,   "unit": "unit" }
+      ]
+    },
+    {
+      "id": "arroz_risotto",
+      "name": "Risotto de pollo",
+      "category_id": "arroz_con_carne",
+      "meal_type": "batch",
+      "servings_estimated": 3,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "pollo",         "quantity": 250, "unit": "g" },
+        { "name": "arroz",         "quantity": 250, "unit": "g" },
+        { "name": "nata",          "quantity": 1,   "unit": "unit", "note": "assume 1 small carton (~200 ml)" },
+        { "name": "champiñones",   "quantity": 1,   "unit": "unit", "note": "quantity not specified" },
+        { "name": "queso rallado", "quantity": 1,   "unit": "unit", "note": "assume 1 small bag" }
+      ]
+    },
+    {
+      "id": "arroz_chino",
+      "name": "Arroz chino",
+      "category_id": "arroz_con_carne",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "arroz",     "quantity": 80,  "unit": "g" },
+        { "name": "pollo",     "quantity": 100, "unit": "g" },
+        { "name": "col",       "quantity": 1,   "unit": "unit", "note": "quantity not specified — assume a handful" },
+        { "name": "zanahoria", "quantity": 1,   "unit": "unit" },
+        { "name": "cebolla",   "quantity": 1,   "unit": "unit" }
+      ]
+    },
+    {
+      "id": "pasta_base",
+      "name": "Pasta (base)",
+      "category_id": "pasta",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["sauce / topping not specified"],
+      "base": { "ingredient": "pasta", "quantity": 100, "unit": "g", "note": "per single plate" },
+      "ingredients": [
+        { "name": "pasta", "quantity": 100, "unit": "g" }
+      ]
+    },
+    {
+      "id": "pasta_pollo",
+      "name": "Pasta con pollo",
+      "category_id": "pasta",
+      "meal_type": "unknown",
+      "servings_estimated": null,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given"],
+      "ingredients": []
+    },
+    {
+      "id": "pasta_carne",
+      "name": "Pasta con carne",
+      "category_id": "pasta",
+      "meal_type": "batch",
+      "servings_estimated": 5,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "carne picada", "quantity": 500, "unit": "g" },
+        { "name": "pasta",        "quantity": 500, "unit": "g" },
+        { "name": "tomate frito", "quantity": 1,   "unit": "unit" },
+        { "name": "cebolla",      "quantity": 3,   "unit": "unit" },
+        { "name": "cerveza",      "quantity": 1,   "unit": "unit" },
+        { "name": "avecrem",      "quantity": 1,   "unit": "unit", "note": "quantity not specified" }
+      ]
+    },
+    {
+      "id": "pizza",
+      "name": "Pizza",
+      "category_id": "pizza",
+      "meal_type": "unknown",
+      "servings_estimated": null,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given (note: original message says 'Pipsa', assumed typo for 'Pizza')"],
+      "ingredients": []
+    },
+    {
+      "id": "pollo_papa_horno",
+      "name": "Pollo con papas al horno",
+      "category_id": "horno",
+      "meal_type": "unknown",
+      "servings_estimated": null,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given"],
+      "ingredients": []
+    },
+    {
+      "id": "puchero",
+      "name": "Puchero",
+      "category_id": "guisos",
+      "meal_type": "batch",
+      "servings_estimated": null,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given"],
+      "ingredients": []
+    },
+    {
+      "id": "lentejas",
+      "name": "Lentejas",
+      "category_id": "guisos",
+      "meal_type": "batch",
+      "servings_estimated": null,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given"],
+      "ingredients": []
+    },
+    {
+      "id": "hamburguesa",
+      "name": "Hamburguesa",
+      "category_id": "street_food",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "empty",
+      "missing": ["all ingredients — only the name was given"],
+      "ingredients": []
+    },
+    {
+      "id": "shish_kebab",
+      "name": "Shish kebab",
+      "category_id": "street_food",
+      "meal_type": "single_meal",
+      "servings_estimated": 1,
+      "servings_confirmed": false,
+      "completeness": "partial",
+      "missing": ["carne (cordero/pollo)", "pan/pita", "salsa"],
+      "ingredients": [
+        { "name": "tomate",  "quantity": 1, "unit": "unit" },
+        { "name": "cebolla", "quantity": 1, "unit": "unit" }
+      ]
+    },
+    {
+      "id": "burrito",
+      "name": "Burrito",
+      "category_id": "street_food",
+      "meal_type": "batch",
+      "servings_estimated": 6,
+      "servings_confirmed": false,
+      "completeness": "complete",
+      "ingredients": [
+        { "name": "pollo picado",   "quantity": 500, "unit": "g" },
+        { "name": "tortitas",       "quantity": 6,   "unit": "unit" },
+        { "name": "arroz",          "quantity": 300, "unit": "g" },
+        { "name": "judías",         "quantity": 1,   "unit": "bote" },
+        { "name": "aguacate",       "quantity": 2,   "unit": "unit" },
+        { "name": "queso rallado",  "quantity": 1,   "unit": "unit", "note": "assume 1 small bag" },
+        { "name": "pimiento",       "quantity": 1,   "unit": "unit" },
+        { "name": "cebolla",        "quantity": 3,   "unit": "unit" },
+        { "name": "yogurt",         "quantity": 1,   "unit": "unit" },
+        { "name": "sazonador",      "quantity": 1,   "unit": "unit", "note": "quantity not specified" }
+      ]
+    }
+  ]
+}
