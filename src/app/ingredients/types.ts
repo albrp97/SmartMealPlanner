@@ -8,6 +8,8 @@ export interface IngredientRow {
 	package_size: number;
 	package_unit: "g" | "ml" | "unit";
 	package_price: number | null;
+	default_package_price?: number | null;
+	price_is_default?: boolean;
 	currency: string;
 	is_supplement: boolean;
 	brand: string | null;
