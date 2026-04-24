@@ -184,16 +184,29 @@ Full DDL lives in [migrations/](migrations/) (created in Phase 1).
 
 ---
 
-## 7. Quickstart (placeholder — full setup in Phase 0)
+## 7. Quickstart
+
+Requires **Node 20+** and **pnpm 9+** (`corepack enable && corepack prepare pnpm@9 --activate`).
 
 ```bash
 git clone https://github.com/albrp97/SmartMealPlanner.git
 cd SmartMealPlanner
-cp .env.example .env.local        # add Supabase + Gemini keys
+cp .env.example .env.local        # leave blank for Phase 0; fill in from Phase 1 onwards
 pnpm install
-pnpm db:migrate                   # Drizzle migrations against Supabase
 pnpm dev                          # http://localhost:3000 (Turbopack)
 ```
+
+Useful scripts:
+
+| Script | Purpose |
+|--------|---------|
+| `pnpm dev` | Dev server with Turbopack HMR. |
+| `pnpm build` | Production build. |
+| `pnpm typecheck` | `tsc --noEmit`. |
+| `pnpm lint` | Biome lint + format check. |
+| `pnpm format` | Biome auto-format. |
+| `pnpm test` | Vitest (run mode). |
+| `pnpm ci:check` | What CI runs (Biome). |
 
 Deploy:
 
