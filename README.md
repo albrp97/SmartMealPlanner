@@ -76,20 +76,29 @@ All values are editable in the Settings screen.
 
 ---
 
-## 4. Tech stack (100% free tier)
+## 4. Tech stack (100% free tier, 2026-modern)
+
+> Design rule: **TypeScript app code, Rust-powered tooling underneath.** Rust as the app language was considered and rejected — the bottleneck here is LLM and DB I/O, not CPU, and a JS frontend is unavoidable for a PWA. Rust appears via Biome, Turbopack and SWC, which give us the speed without the dev-velocity hit.
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Frontend | **Next.js 15** (App Router) + **TypeScript** + **Tailwind CSS** + **shadcn/ui** | Mobile-first, SSR + PWA, free on Vercel. |
-| State / data | **TanStack Query** + **Zod** | Type-safe data fetching & validation. |
-| Backend | **Next.js Route Handlers** (`/app/api/*`) | One repo, one deploy, no extra service. |
+| Frontend | **Next.js 15** (App Router, **Turbopack** dev) + **TypeScript 5.x** + **Tailwind CSS 4** + **shadcn/ui** | Mobile-first, SSR + PWA, free on Vercel; Turbopack (Rust) for instant HMR. |
+| State / data | **TanStack Query v5** + **Zod 3** | Type-safe data fetching & validation. |
+| Backend | **Server Actions** (mutations) + **Route Handlers** (`/app/api/*` for public/webhook endpoints) | Less boilerplate, end-to-end type safety, one repo, one deploy. |
+| ORM | **Drizzle ORM** (over Supabase Postgres) | Type-safe SQL, edge-compatible, lighter than Prisma, plays well with RLS. |
 | DB | **Supabase Postgres** (free 500 MB) | Row-level security, generous free tier. |
 | Auth | **Supabase Auth** (magic-link / Google) | Single-user first, multi-user ready. |
-| Storage | **Supabase Storage** | For receipt images. |
-| LLM (vision) | **Google Gemini 2.0 Flash** (free tier) — fallback **OpenAI gpt-4o-mini** | Receipt parsing + recipe enrichment. |
+| Storage | **Supabase Storage** | Receipt images, signed URLs. |
+| LLM (vision) | **Google Gemini 2.5 Flash** via **Vercel AI SDK** — fallback **OpenAI gpt-4o-mini** | First-class structured output, easy provider swap, free tier. |
+| Rate limiting | **Upstash Redis + `@upstash/ratelimit`** | Edge-compatible, free tier, protects `/api/receipts`. |
+| Env validation | **`@t3-oss/env-nextjs`** | Build-time check that all env vars exist and are well-typed. |
 | Hosting | **Vercel Hobby** (free) | Instant deploy from GitHub, mobile URL. |
-| CI | **GitHub Actions** | Lint, type-check, test on PR. |
-| Observability | **Vercel Analytics** + **Sentry** (free tier) | Errors + perf. |
+| Package manager | **pnpm 9** | Faster installs, strict dep resolution, content-addressable store. |
+| Lint + format | **Biome** (Rust) — replaces ESLint + Prettier | One tool, ~25× faster, zero config. |
+| Testing | **Vitest 2** + **Playwright** | Vitest is Vite-native (Rust-powered esbuild + SWC). |
+| CI | **GitHub Actions** | Lint, type-check, test, build on PR. |
+| Observability | **Sentry** (errors) + **PostHog** (product analytics, session replay) + **Vercel Analytics** (Web Vitals) | All free tier. |
+| PWA | **Serwist** (Workbox-based, maintained successor to `next-pwa`) | `next-pwa` is unmaintained; Serwist supports App Router properly. |
 
 ---
 
@@ -178,12 +187,12 @@ Full DDL lives in [migrations/](migrations/) (created in Phase 1).
 ## 7. Quickstart (placeholder — full setup in Phase 0)
 
 ```bash
-git clone https://github.com/<you>/SmartMealPlanner.git
+git clone https://github.com/albrp97/SmartMealPlanner.git
 cd SmartMealPlanner
 cp .env.example .env.local        # add Supabase + Gemini keys
-npm install
-npm run db:migrate
-npm run dev                       # http://localhost:3000
+pnpm install
+pnpm db:migrate                   # Drizzle migrations against Supabase
+pnpm dev                          # http://localhost:3000 (Turbopack)
 ```
 
 Deploy:

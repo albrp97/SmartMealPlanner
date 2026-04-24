@@ -6,12 +6,18 @@ End-to-end guide for building, testing, deploying and improving the app. Read th
 
 ## 0. Conventions
 
-- **Language:** TypeScript everywhere (frontend + API routes).
-- **Style:** ESLint + Prettier, enforced on CI.
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:` …).
+- **Language:** TypeScript everywhere (frontend, Server Actions, Route Handlers, scripts).
+- **Runtime / pkg mgr:** Node 20 LTS + **pnpm 9** (lockfile committed; `npm` and `yarn` forbidden).
+- **Style:** **Biome** (lint + format) — single Rust binary, replaces ESLint + Prettier. Enforced on CI.
+- **Type safety end-to-end:** Drizzle (DB) + Zod (boundaries) + `@t3-oss/env-nextjs` (env). No `any`.
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:` …), enforced via `commitlint` + Husky pre-commit.
 - **Branching:** trunk-based — short-lived feature branches → PR → `main` → auto-deploy.
 - **Issue tracker:** GitHub Issues, labelled by phase (`phase-0`, `phase-1`, …).
 - **Secrets:** never commit. Use `.env.local` locally, Vercel + GitHub Secrets in CI/prod.
+
+### Why this stack (and why not Rust)
+
+Rust was evaluated as a backend language and rejected for this project. The hot path is `phone → Vercel → Supabase → Gemini → Vercel → phone`, dominated by network latency (1–3 s for the LLM call). A Rust API would save < 1 % of total request time at the cost of doubling the language surface and losing Vercel's zero-config Next.js deploy. We capture the upside of Rust through tooling instead: **Turbopack** (Next dev bundler), **SWC** (TS compiler), **Biome** (lint+format), and **oxc**-based dependencies as they mature.
 
 ---
 
@@ -23,10 +29,12 @@ SmartMealPlanner/
 ├── DEVELOPER_GUIDE.md           ← you are here
 ├── .env.example
 ├── package.json
+├── pnpm-lock.yaml
 ├── next.config.mjs
 ├── tailwind.config.ts
 ├── tsconfig.json
-├── eslint.config.mjs
+├── biome.json                   # lint + format (replaces .eslintrc + .prettierrc)
+├── drizzle.config.ts
 ├── vitest.config.ts
 ├── playwright.config.ts
 ├── public/
@@ -57,10 +65,14 @@ SmartMealPlanner/
 │   │       └── prices/route.ts
 │   ├── components/              # shadcn/ui + custom
 │   ├── lib/
-│   │   ├── db.ts                # Supabase client (server)
+│   │   ├── db/
+│   │   │   ├── client.ts        # Drizzle + Supabase client (server)
+│   │   │   └── schema.ts        # Drizzle table definitions (source of truth)
+│   │   ├── env.ts               # @t3-oss/env-nextjs schema
 │   │   ├── auth.ts
+│   │   ├── ratelimit.ts         # Upstash Redis + ratelimit
 │   │   ├── llm/
-│   │   │   ├── gemini.ts        # vision call + JSON schema
+│   │   │   ├── gemini.ts        # vision call via Vercel AI SDK
 │   │   │   └── prompts.ts
 │   │   ├── nutrition.ts         # Mifflin-St Jeor, macro split
 │   │   ├── shopping.ts          # aggregation + package rounding
@@ -87,13 +99,18 @@ Each phase ends in a **deployable, demoable increment**.
 
 Goal: empty app deployable to Vercel, CI green, DB connected.
 
-- [ ] `npx create-next-app@latest SmartMealPlanner --ts --tailwind --eslint --app --src-dir`
-- [ ] Add shadcn/ui, lucide-react, TanStack Query, Zod.
-- [ ] Init Supabase project, save URL + anon + service keys.
-- [ ] Wire `lib/db.ts` (server-side Supabase client).
-- [ ] Add GitHub Actions: `lint`, `typecheck`, `test`, `build`.
+- [ ] `pnpm create next-app@latest SmartMealPlanner --ts --tailwind --app --src-dir --turbopack --import-alias "@/*"` (skip the ESLint prompt — we use Biome).
+- [ ] `pnpm add -D @biomejs/biome` and `pnpm biome init`; add `lint`/`format` scripts.
+- [ ] `pnpm add @tanstack/react-query zod @t3-oss/env-nextjs lucide-react` and run `pnpm dlx shadcn@latest init`.
+- [ ] `pnpm add drizzle-orm postgres @supabase/supabase-js @supabase/ssr` and `pnpm add -D drizzle-kit`.
+- [ ] `pnpm add ai @ai-sdk/google @ai-sdk/openai` (Vercel AI SDK + providers).
+- [ ] `pnpm add @upstash/redis @upstash/ratelimit`.
+- [ ] Init Supabase project, save URL + anon + service keys; create Upstash Redis instance.
+- [ ] Wire `lib/db/client.ts` (Drizzle over Supabase Postgres) and `lib/env.ts`.
+- [ ] Add GitHub Actions: `biome ci`, `typecheck`, `test`, `build`.
 - [ ] Connect repo to Vercel; verify `https://smart-meal-planner.vercel.app` works.
-- [ ] Configure PWA: manifest + icons + service worker (`next-pwa`).
+- [ ] Configure PWA with **Serwist**: manifest + icons + service worker.
+- [ ] Set up Husky + commitlint for Conventional Commits.
 
 ### Phase 1 — Ingredient & recipe catalogue (read/write)
 
@@ -209,32 +226,36 @@ Goal: photo of a ticket → updated price catalogue.
 
 ## 3. Local development
 
-Prereqs: Node 20+, npm 10+, Supabase CLI, a Gemini API key.
+Prereqs: Node 20+, **pnpm 9+** (`corepack enable && corepack prepare pnpm@latest --activate`), Supabase CLI, a Gemini API key.
 
 ```bash
 # 1. install
-npm install
+pnpm install
 
 # 2. start a local Supabase stack (optional but recommended)
 supabase start
 
 # 3. apply migrations + seed
-npm run db:migrate
-npm run db:seed
+pnpm db:migrate          # drizzle-kit push / migrate
+pnpm db:seed             # tsx scripts/seed.ts
 
-# 4. run dev server
-npm run dev
+# 4. run dev server (Turbopack)
+pnpm dev
 ```
 
-`.env.local` keys:
+`.env.local` keys (all validated at build time by `lib/env.ts`):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-GEMINI_API_KEY=
-OPENAI_API_KEY=             # optional fallback
-SENTRY_DSN=                 # optional
+DATABASE_URL=                       # direct Postgres URL for Drizzle (Supabase pooled)
+GOOGLE_GENERATIVE_AI_API_KEY=       # Gemini, read by @ai-sdk/google
+OPENAI_API_KEY=                     # optional fallback, read by @ai-sdk/openai
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+SENTRY_DSN=                         # optional
+NEXT_PUBLIC_POSTHOG_KEY=            # optional
 ```
 
 ---
@@ -255,12 +276,14 @@ SENTRY_DSN=                 # optional
 
 CI gates (GitHub Actions):
 
-1. `lint` (eslint + prettier --check)
+1. `biome ci` (lint + format check, single Rust binary)
 2. `typecheck` (`tsc --noEmit`)
 3. `test:unit`
 4. `test:integration` (spins up Supabase service container)
 5. `build`
 6. `test:e2e` (only on PR to `main`)
+
+All jobs use `pnpm/action-setup` + actions/cache for the pnpm store; cold install is < 30 s.
 
 ---
 
