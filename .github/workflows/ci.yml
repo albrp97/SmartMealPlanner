@@ -30,7 +30,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Test (Vitest)
-        run: pnpm test --passWithNoTests
+        run: pnpm test
 
       - name: Build
         run: pnpm build
