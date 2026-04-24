@@ -127,23 +127,89 @@ interface RealPrice {
 // default_package_price is left intact so the UI can compute the % delta.
 const REAL_PRICES: RealPrice[] = [
 	// Meat & protein
-	{ slug: "chicken_thigh_fillets", sold_as: "package", package_size: 850, package_unit: "g", package_price: 170.26 },
-	{ slug: "minced_chicken", sold_as: "package", package_size: 500, package_unit: "g", package_price: 79.9 },
-	{ slug: "pork", sold_as: "package", package_size: 1100, package_unit: "g", package_price: 133.09 },
-	{ slug: "chorizo", sold_as: "package", package_size: 1, package_unit: "unit", package_price: 67.9 },
-	{ slug: "grated_cheese", sold_as: "package", package_size: 200, package_unit: "g", package_price: 39.9 },
+	{
+		slug: "chicken_thigh_fillets",
+		sold_as: "package",
+		package_size: 850,
+		package_unit: "g",
+		package_price: 170.26,
+	},
+	{
+		slug: "minced_chicken",
+		sold_as: "package",
+		package_size: 500,
+		package_unit: "g",
+		package_price: 79.9,
+	},
+	{
+		slug: "pork",
+		sold_as: "package",
+		package_size: 1100,
+		package_unit: "g",
+		package_price: 133.09,
+	},
+	{
+		slug: "chorizo",
+		sold_as: "package",
+		package_size: 1,
+		package_unit: "unit",
+		package_price: 67.9,
+	},
+	{
+		slug: "grated_cheese",
+		sold_as: "package",
+		package_size: 200,
+		package_unit: "g",
+		package_price: 39.9,
+	},
 
 	// Dairy & pantry
 	{ slug: "beer", sold_as: "package", package_size: 1, package_unit: "unit", package_price: 21.9 },
-	{ slug: "basmati_rice", sold_as: "package", package_size: 1000, package_unit: "g", package_price: 59.9 },
-	{ slug: "tortilla_wraps", sold_as: "package", package_size: 6, package_unit: "unit", package_price: 27.9 },
-	{ slug: "crushed_tomato", sold_as: "package", package_size: 700, package_unit: "g", package_price: 36.9 },
+	{
+		slug: "basmati_rice",
+		sold_as: "package",
+		package_size: 1000,
+		package_unit: "g",
+		package_price: 59.9,
+	},
+	{
+		slug: "tortilla_wraps",
+		sold_as: "package",
+		package_size: 6,
+		package_unit: "unit",
+		package_price: 27.9,
+	},
+	{
+		slug: "crushed_tomato",
+		sold_as: "package",
+		package_size: 700,
+		package_unit: "g",
+		package_price: 36.9,
+	},
 	{ slug: "beans", sold_as: "package", package_size: 400, package_unit: "g", package_price: 16.9 },
-	{ slug: "plain_yogurt", sold_as: "package", package_size: 1000, package_unit: "g", package_price: 45 },
+	{
+		slug: "plain_yogurt",
+		sold_as: "package",
+		package_size: 1000,
+		package_unit: "g",
+		package_price: 45,
+	},
 
 	// Produce — sold by unit, average weights captured via g_per_unit elsewhere.
-	{ slug: "red_bell_pepper", sold_as: "unit", package_size: 1, package_unit: "unit", package_price: 35 },
-	{ slug: "vine_tomato", sold_as: "unit", package_size: 1, package_unit: "unit", package_price: 13.31 },
+	{
+		slug: "red_bell_pepper",
+		sold_as: "unit",
+		package_size: 1,
+		package_unit: "unit",
+		package_price: 35,
+	},
+	{
+		slug: "vine_tomato",
+		sold_as: "unit",
+		package_size: 1,
+		package_unit: "unit",
+		package_price: 13.31,
+	},
 	{ slug: "onion", sold_as: "unit", package_size: 1, package_unit: "unit", package_price: 6 },
 	{ slug: "potato", sold_as: "unit", package_size: 1, package_unit: "unit", package_price: 3.8 },
 	{ slug: "avocado", sold_as: "unit", package_size: 1, package_unit: "unit", package_price: 39.95 },
@@ -157,10 +223,7 @@ async function main() {
 	);
 
 	// Detect whether migration 0003 has been applied.
-	const { error: probeErr } = await sb
-		.from("ingredients")
-		.select("default_package_price")
-		.limit(1);
+	const { error: probeErr } = await sb.from("ingredients").select("default_package_price").limit(1);
 	const hasDefaultColumn = probeErr === null;
 	console.log(`Default-price column present: ${hasDefaultColumn}`);
 
@@ -272,7 +335,8 @@ async function main() {
 		}
 		const row = data[0] as { default_package_price?: number | null };
 		const def = row.default_package_price;
-		const delta = def != null && def !== 0 ? `${(((p.package_price - def) / def) * 100).toFixed(0)}%` : "n/a";
+		const delta =
+			def != null && def !== 0 ? `${(((p.package_price - def) / def) * 100).toFixed(0)}%` : "n/a";
 		console.log(`$ ${p.slug}: real ${p.package_price} CZK (default ${def ?? "?"} CZK, ${delta})`);
 	}
 
@@ -280,7 +344,10 @@ async function main() {
 	const { data: bad } = await sb
 		.from("ingredients")
 		.select("slug,micros_per_100g")
-		.in("slug", NEW_INGREDIENTS.map((i) => i.slug));
+		.in(
+			"slug",
+			NEW_INGREDIENTS.map((i) => i.slug),
+		);
 	for (const r of bad ?? []) {
 		const m = (r.micros_per_100g ?? {}) as Record<string, unknown>;
 		for (const k of TRACKED_MICROS) {

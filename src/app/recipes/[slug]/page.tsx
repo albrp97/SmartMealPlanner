@@ -1,12 +1,24 @@
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
 import { GOALS, GOAL_LABEL, type Goal, TARGETS, isGoal, pct } from "@/lib/goals";
-import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
+import {
+	type NutritionLineInput,
+	computeLineNutrition,
+	computeRecipeNutrition,
+} from "@/lib/nutrition";
 import { RDA, rdaPercent } from "@/lib/rda";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Variance assumed for ingredients that still carry the seeded estimate
+ * instead of a real ticket price. Applied symmetrically to the cost they
+ * contribute to the recipe so we can show "between X and Y" until prices
+ * are calibrated. ±15% is loose enough to cover most Lidl shelf swings.
+ */
+const DEFAULT_PRICE_VARIANCE = 0.15;
 
 interface IngredientForCost {
 	id: string;
@@ -14,6 +26,8 @@ interface IngredientForCost {
 	package_size: number;
 	package_unit: "g" | "ml" | "unit";
 	package_price: number | null;
+	default_package_price: number | null;
+	price_is_default: boolean;
 	currency: string;
 	is_supplement: boolean;
 	g_per_unit: number | null;
@@ -60,7 +74,7 @@ export default async function RecipeDetailPage({
 	const { data: linesRaw } = await supabase
 		.from("recipe_ingredients")
 		.select(
-			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g)",
+			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, default_package_price, price_is_default, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g)",
 		)
 		.eq("recipe_id", recipe.id)
 		.order("position");
@@ -85,6 +99,20 @@ export default async function RecipeDetailPage({
 	const cost = computeRecipeCost(costInputs);
 	const perServing = recipe.servings > 0 ? cost.total / recipe.servings : cost.total;
 	const shoppingCost = computeRecipeCost(costInputs, "CZK", "shopping");
+
+	// Cost coming from ingredients that still hold the seeded default price.
+	// Used to show a ±variance band on the recipe cost so the user knows how
+	// much of the estimate is still uncertain.
+	const defaultLinesCost = lines.reduce((acc, l, idx) => {
+		if (!l.ingredients) return acc;
+		if (!l.ingredients.price_is_default) return acc;
+		const c = cost.lines[idx]?.cost ?? 0;
+		return acc + c;
+	}, 0);
+	const costSwing = defaultLinesCost * DEFAULT_PRICE_VARIANCE;
+	const costMin = Math.max(0, cost.total - costSwing);
+	const costMax = cost.total + costSwing;
+	const defaultShare = cost.total > 0 ? Math.round((defaultLinesCost / cost.total) * 100) : 0;
 
 	const nutritionInputs: NutritionLineInput[] = lines
 		.filter(
@@ -266,6 +294,17 @@ export default async function RecipeDetailPage({
 				<p className="font-mono text-xs text-zinc-500">
 					≈ {perServing.toFixed(2)} {cost.currency} / serving
 				</p>
+				{defaultLinesCost > 0 ? (
+					<p className="mt-2 font-mono text-[11px] text-amber-300/90">
+						Between {costMin.toFixed(2)} and {costMax.toFixed(2)} {cost.currency} — {defaultShare}%
+						of this recipe still uses default Lidl 2026 estimates (±
+						{Math.round(DEFAULT_PRICE_VARIANCE * 100)}% assumed).
+					</p>
+				) : (
+					<p className="mt-2 font-mono text-[11px] text-emerald-300/80">
+						All line prices come from real tickets.
+					</p>
+				)}
 				<p className="mt-2 font-mono text-[10px] text-zinc-500">
 					Shopping (round up to whole packages): {shoppingCost.total.toFixed(2)}{" "}
 					{shoppingCost.currency}
@@ -424,28 +463,84 @@ export default async function RecipeDetailPage({
 
 			<section>
 				<h2 className="mb-2 text-sm font-medium text-zinc-300">Ingredients</h2>
+				<p className="mb-2 font-mono text-[10px] text-zinc-600">
+					Per-line numbers are computed for the quantity used in this recipe (whole batch, not per
+					serving). Hover the price badge to see the source.
+				</p>
 				<ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
 					{lines.map((l, idx) => {
 						const lineCost = cost.lines[idx];
+						const ing = l.ingredients;
+						// Per-line nutrition for the quantity declared in the recipe.
+						const lineMacros = ing
+							? computeLineNutrition({
+									ingredient: {
+										isSupplement: ing.is_supplement,
+										gPerUnit: ing.g_per_unit,
+										densityGPerMl: ing.density_g_per_ml,
+										kcalPer100g: ing.kcal_per_100g,
+										proteinPer100g: ing.protein_per_100g,
+										carbsPer100g: ing.carbs_per_100g,
+										fatPer100g: ing.fat_per_100g,
+										fiberPer100g: ing.fiber_per_100g,
+									},
+									quantity: l.quantity,
+									unit: l.unit,
+								}).macros
+							: null;
+						const isDef = ing?.price_is_default ?? true;
+						const def = ing?.default_package_price;
+						const real = ing?.package_price;
+						const priceDelta =
+							!isDef && def != null && real != null && def !== 0
+								? `${(((real - def) / def) * 100).toFixed(0)}% vs default`
+								: null;
 						return (
 							<li
-								key={`${l.ingredients?.id ?? "?"}-${idx}`}
-								className="flex items-center justify-between px-3 py-2 text-sm"
+								key={`${ing?.id ?? "?"}-${idx}`}
+								className="flex flex-col gap-1 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
 							>
-								<div>
-									<p className="text-zinc-100">{l.ingredients?.name ?? "(missing ingredient)"}</p>
+								<div className="min-w-0 flex-1">
+									<p className="text-zinc-100">{ing?.name ?? "(missing ingredient)"}</p>
 									{l.notes ? <p className="text-xs text-zinc-500">{l.notes}</p> : null}
+									{lineMacros ? (
+										<p className="mt-1 font-mono text-[10px] text-zinc-500">
+											{Math.round(lineMacros.kcal)} kcal · {lineMacros.protein.toFixed(1)} P ·{" "}
+											{lineMacros.carbs.toFixed(1)} C · {lineMacros.fat.toFixed(1)} F
+										</p>
+									) : (
+										<p className="mt-1 font-mono text-[10px] text-zinc-600">no nutrition data</p>
+									)}
 								</div>
-								<div className="flex items-center gap-4 text-right">
+								<div className="flex items-center gap-3 text-right">
 									<span className="font-mono text-xs text-zinc-400">
 										{l.quantity} {l.unit}
 									</span>
-									<span className="w-24 font-mono text-xs text-zinc-500">
-										{lineCost.cost != null
-											? `${lineCost.cost.toFixed(2)} ${lineCost.currency}`
-											: lineCost.reason === "no_price"
-												? "no price"
-												: "unit ≠"}
+									<span className="flex items-center justify-end gap-1.5 font-mono text-xs">
+										<span className="w-20 text-zinc-300">
+											{lineCost.cost != null
+												? `${lineCost.cost.toFixed(2)} ${lineCost.currency}`
+												: lineCost.reason === "no_price"
+													? "no price"
+													: "unit ≠"}
+										</span>
+										{ing && lineCost.cost != null ? (
+											isDef ? (
+												<span
+													title="Lidl Prague 2026 estimate — not from a real receipt yet"
+													className="rounded border border-amber-700 bg-amber-900/30 px-1 py-0.5 text-[9px] uppercase tracking-wider text-amber-300"
+												>
+													def
+												</span>
+											) : (
+												<span
+													title={priceDelta ? `Real price · ${priceDelta}` : "Real price"}
+													className="rounded border border-emerald-700 bg-emerald-900/30 px-1 py-0.5 text-[9px] uppercase tracking-wider text-emerald-300"
+												>
+													real
+												</span>
+											)
+										) : null}
 									</span>
 								</div>
 							</li>
