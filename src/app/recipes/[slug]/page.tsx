@@ -1,6 +1,7 @@
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
 import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
+import { RDA, rdaPercent } from "@/lib/rda";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -21,6 +22,7 @@ interface IngredientForCost {
 	carbs_per_100g: number | null;
 	fat_per_100g: number | null;
 	fiber_per_100g: number | null;
+	micros_per_100g: Record<string, number> | null;
 }
 
 interface RecipeIngredientRow {
@@ -52,7 +54,7 @@ export default async function RecipeDetailPage({
 	const { data: linesRaw } = await supabase
 		.from("recipe_ingredients")
 		.select(
-			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g)",
+			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g)",
 		)
 		.eq("recipe_id", recipe.id)
 		.order("position");
@@ -92,6 +94,7 @@ export default async function RecipeDetailPage({
 				carbsPer100g: l.ingredients.carbs_per_100g,
 				fatPer100g: l.ingredients.fat_per_100g,
 				fiberPer100g: l.ingredients.fiber_per_100g,
+				microsPer100g: l.ingredients.micros_per_100g,
 			},
 			quantity: l.quantity,
 			unit: l.unit,
@@ -174,6 +177,41 @@ export default async function RecipeDetailPage({
 					{nutrition.total.carbs} g C · {nutrition.total.fat} g F
 				</p>
 			</section>
+
+			{Object.keys(nutrition.perServingMicros).length > 0 ? (
+				<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+					<h2 className="text-sm font-medium text-zinc-300">Micronutrients / serving</h2>
+					<p className="mt-1 font-mono text-[10px] text-zinc-600">
+						% of EU adult Reference Daily Allowance (NRV).
+					</p>
+					<dl className="mt-3 space-y-2">
+						{Object.entries(RDA).map(([key, entry]) => {
+							const value = nutrition.perServingMicros[key];
+							if (value == null) return null;
+							const pct = rdaPercent(key, value) ?? 0;
+							const clamped = Math.min(100, pct);
+							const over = key === "sodium_mg" && pct > 100;
+							return (
+								<div key={key} className="space-y-1">
+									<div className="flex justify-between font-mono text-xs text-zinc-400">
+										<span>{entry.label}</span>
+										<span>
+											{value} {entry.unit} ·{" "}
+											<span className={over ? "text-amber-400" : "text-zinc-300"}>{pct}%</span>
+										</span>
+									</div>
+									<div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+										<div
+											className={`h-full rounded-full ${over ? "bg-amber-500" : "bg-sky-500"}`}
+											style={{ width: `${clamped}%` }}
+										/>
+									</div>
+								</div>
+							);
+						})}
+					</dl>
+				</section>
+			) : null}
 
 			<section>
 				<h2 className="mb-2 text-sm font-medium text-zinc-300">Ingredients</h2>

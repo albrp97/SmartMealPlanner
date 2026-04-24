@@ -69,6 +69,26 @@ export const ingredientInputSchema = z.object({
 	// Unit-conversion metadata used by the nutrition engine.
 	g_per_unit: optionalNonNegative,
 	density_g_per_ml: optionalNonNegative,
+	// Sparse micros bag (e.g. { sodium_mg: 1.2, iron_mg: 0.5 }). Comes from
+	// OpenFoodFacts via the lookup; serialised as a JSON string in the form.
+	micros_per_100g: z
+		.union([
+			z.literal(""),
+			z.string().transform((s, ctx) => {
+				try {
+					const parsed = JSON.parse(s);
+					if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+				} catch {}
+				ctx.addIssue({ code: z.ZodIssueCode.custom, message: "invalid micros JSON" });
+				return z.NEVER;
+			}),
+			z.record(z.string(), z.number().nonnegative()),
+		])
+		.optional()
+		.transform((v) => {
+			if (v === undefined || v === "") return null;
+			return v as Record<string, number>;
+		}),
 });
 
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;

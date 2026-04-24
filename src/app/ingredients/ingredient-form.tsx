@@ -68,6 +68,9 @@ export function IngredientForm({ mode, initial }: Props) {
 	// effectively one-field.
 	const [slugTouched, setSlugTouched] = useState(mode === "edit");
 	const [nutrition, setNutrition] = useState<NutritionState>(() => nutritionFromInitial(initial));
+	const [micros, setMicros] = useState<Record<string, number> | null>(
+		() => initial?.micros_per_100g ?? null,
+	);
 	const [lookupHint, setLookupHint] = useState<LookupHint | null>(null);
 	const [lookupError, setLookupError] = useState<string | null>(null);
 	const [lookupPending, startLookup] = useTransition();
@@ -104,6 +107,12 @@ export function IngredientForm({ mode, initial }: Props) {
 				fat_per_100g: fmt(h.fat_per_100g),
 				fiber_per_100g: fmt(h.fiber_per_100g),
 			});
+			// Keep only non-null micros so the JSONB blob stays sparse.
+			const nextMicros: Record<string, number> = {};
+			for (const [k, v] of Object.entries(h.micros)) {
+				if (typeof v === "number" && Number.isFinite(v)) nextMicros[k] = v;
+			}
+			setMicros(Object.keys(nextMicros).length ? nextMicros : null);
 			setLookupHint({
 				matched_product_name: h.matched_product_name,
 				matched_product_brand: h.matched_product_brand,
@@ -382,6 +391,8 @@ export function IngredientForm({ mode, initial }: Props) {
 					</FormRow>
 				</div>
 			</Card>
+
+			<input type="hidden" name="micros_per_100g" value={micros ? JSON.stringify(micros) : ""} />
 
 			<div className="flex items-center gap-2 pt-2">
 				<Button type="submit" variant="primary" disabled={pending}>

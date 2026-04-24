@@ -10,6 +10,13 @@
  * Actions and the seed script.
  */
 
+export interface MicrosPer100g {
+	sodium_mg: number | null;
+	calcium_mg: number | null;
+	iron_mg: number | null;
+	vitamin_c_mg: number | null;
+}
+
 export interface NutritionPer100 {
 	kcal_per_100g: number | null;
 	protein_per_100g: number | null;
@@ -25,6 +32,7 @@ export interface NutritionLookupHit extends NutritionPer100 {
 	off_code: string | null;
 	off_url: string;
 	score: number; // 0..1, higher = better match
+	micros: MicrosPer100g;
 }
 
 const BASE = "https://world.openfoodfacts.org";
@@ -76,6 +84,12 @@ export async function lookupNutrition(
 		"code,product_name,product_name_en,brands,nutriments,completeness",
 	);
 
+	// OFF nutriment keys for micros are in grams; convert to mg.
+	function mg(v: unknown): number | null {
+		const n = num(v);
+		return n == null ? null : Math.round(n * 1000 * 10) / 10;
+	}
+
 	const res = await fetch(url, {
 		signal: options.signal,
 		headers: {
@@ -101,6 +115,12 @@ export async function lookupNutrition(
 				fat_per_100g: num(p.nutriments?.fat_100g),
 				fiber_per_100g: num(p.nutriments?.fiber_100g),
 			};
+			const micros: MicrosPer100g = {
+				sodium_mg: mg(p.nutriments?.sodium_100g),
+				calcium_mg: mg(p.nutriments?.calcium_100g),
+				iron_mg: mg(p.nutriments?.iron_100g),
+				vitamin_c_mg: mg(p.nutriments?.["vitamin-c_100g"]),
+			};
 			const filled = [
 				nut.kcal_per_100g,
 				nut.protein_per_100g,
@@ -110,7 +130,7 @@ export async function lookupNutrition(
 			].filter((v) => v != null).length;
 			const completeness = typeof p.completeness === "number" ? p.completeness : 0;
 			const score = filled / 5 + completeness * 0.1;
-			return { p, nut, filled, score };
+			return { p, nut, micros, filled, score };
 		})
 		.filter((s) => s.nut.kcal_per_100g != null && s.nut.protein_per_100g != null)
 		.sort((a, b) => b.score - a.score);
@@ -133,5 +153,6 @@ export async function lookupNutrition(
 		off_code: best.p.code ?? null,
 		off_url: best.p.code ? `${BASE}/product/${best.p.code}` : `${BASE}/`,
 		score: Math.min(1, best.score),
+		micros: best.micros,
 	};
 }
