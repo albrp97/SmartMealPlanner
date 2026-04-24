@@ -17,17 +17,20 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"db:generate": "drizzle-kit generate",
-		"db:seed": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} tsx scripts/seed.ts"
+		"db:seed": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} tsx scripts/seed.ts",
+		"db:backfill-nutrition": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt} tsx scripts/backfill-nutrition.ts"
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.10.2",
 		"@supabase/supabase-js": "^2.104.1",
 		"@t3-oss/env-nextjs": "^0.11.1",
 		"@tanstack/react-query": "^5.59.0",
+		"clsx": "^2.1.1",
 		"lucide-react": "^0.460.0",
 		"next": "16.2.4",
 		"react": "19.2.4",
 		"react-dom": "19.2.4",
+		"tailwind-merge": "^3.5.0",
 		"zod": "^3.23.8"
 	},
 	"devDependencies": {

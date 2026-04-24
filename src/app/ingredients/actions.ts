@@ -12,6 +12,7 @@
 "use server";
 
 import { createClient } from "@/lib/db/client-server";
+import { type NutritionLookupHit, lookupNutrition } from "@/lib/nutrition-lookup";
 import { ingredientInputSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -35,6 +36,11 @@ function parseForm(formData: FormData) {
 		is_supplement: formData.get("is_supplement") === "on",
 		brand: formData.get("brand"),
 		notes: formData.get("notes"),
+		kcal_per_100g: formData.get("kcal_per_100g"),
+		protein_per_100g: formData.get("protein_per_100g"),
+		carbs_per_100g: formData.get("carbs_per_100g"),
+		fat_per_100g: formData.get("fat_per_100g"),
+		fiber_per_100g: formData.get("fiber_per_100g"),
 	};
 	return ingredientInputSchema.safeParse(raw);
 }
@@ -82,4 +88,21 @@ export async function deleteIngredient(id: string): Promise<ActionResult> {
 	}
 	revalidatePath("/ingredients");
 	return { ok: true };
+}
+
+/**
+ * Look up nutrition facts from OpenFoodFacts.
+ *
+ * Wrapped as a Server Action so the browser doesn't talk to OFF directly
+ * (avoids CORS, hides the User-Agent, lets us swap providers later).
+ */
+export async function lookupNutritionAction(
+	query: string,
+): Promise<{ ok: true; hit: NutritionLookupHit | null } | { ok: false; error: string }> {
+	try {
+		const hit = await lookupNutrition(query);
+		return { ok: true, hit };
+	} catch (e) {
+		return { ok: false, error: e instanceof Error ? e.message : "lookup failed" };
+	}
 }
