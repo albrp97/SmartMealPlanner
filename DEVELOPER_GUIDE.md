@@ -132,8 +132,7 @@ Goal: full CRUD on ingredients and recipes, seeded from the user's list.
 - [x] **Recipe pages** — `/recipes` lists recipes grouped by category; `/recipes/[slug]` shows ingredients with quantities and a **live cost preview** (total + per-serving) computed from current `package_price`.
 - [x] **Cost helper** ([`src/lib/cost.ts`](src/lib/cost.ts)) — proportional per-line cost (`needed / package_size × package_price`), no implicit unit conversion, flags lines with missing prices or mismatched units.
 - [x] Vitest tests for `slugify` + `computeRecipeCost` (13 tests passing).
-- [ ] Recipe ingredients editor (add/remove rows on the detail page).
-- [ ] Add/edit recipe form (mirror of the ingredient one).
+- [x] **Recipe create/edit form** with embedded ingredient editor (add/remove/edit rows). Pages: `/recipes/new`, `/recipes/[slug]/edit`. Server Action serialises rows via a hidden JSON field; updates do delete-then-insert on `recipe_ingredients` (simple, fine for personal scale).
 - [ ] Optional polish: install **shadcn/ui** primitives and replace the hand-rolled inputs.
 
 #### Migration workflow (corp network workaround)
