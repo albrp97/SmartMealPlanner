@@ -56,6 +56,12 @@ export const ingredients = pgTable(
 		packageSize: doublePrecision("package_size").notNull(),
 		packageUnit: text("package_unit", { enum: ["g", "ml", "unit"] }).notNull(),
 		packagePrice: doublePrecision("package_price"),
+		// Immutable Lidl Prague 2026 estimate kept alongside the live price so we
+		// can compute %-delta once a real ticket is logged.
+		defaultPackagePrice: doublePrecision("default_package_price"),
+		// True while `package_price` still equals the seeded estimate. The
+		// `updateIngredient` server action flips it to false on every manual edit.
+		priceIsDefault: boolean("price_is_default").notNull().default(true),
 		currency: text("currency").notNull().default("CZK"),
 		isSupplement: boolean("is_supplement").notNull().default(false),
 		brand: text("brand"),

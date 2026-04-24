@@ -4,12 +4,20 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+/** Format the % change between a real ticket price and the seeded default. */
+function pctDelta(real: number, def: number): string {
+	if (def === 0) return "n/a";
+	const pct = ((real - def) / def) * 100;
+	const sign = pct > 0 ? "+" : "";
+	return `${sign}${pct.toFixed(0)}% vs default`;
+}
+
 export default async function IngredientsPage() {
 	const supabase = await createClient();
 	const { data: ingredients, error } = await supabase
 		.from("ingredients")
 		.select(
-			"id, name, category_id, package_size, package_unit, package_price, currency, kcal_per_100g",
+			"id, name, category_id, package_size, package_unit, package_price, default_package_price, price_is_default, currency, kcal_per_100g",
 		)
 		.order("name");
 
@@ -54,7 +62,34 @@ export default async function IngredientsPage() {
 										{i.package_size} {i.package_unit}
 									</td>
 									<td className="px-3 py-2 text-right font-mono text-zinc-400">
-										{i.package_price != null ? `${i.package_price.toFixed(2)} ${i.currency}` : "—"}
+										{i.package_price != null ? (
+											<span className="flex items-center justify-end gap-2">
+												<span>
+													{i.package_price.toFixed(2)} {i.currency}
+												</span>
+												{i.price_is_default ? (
+													<span
+														title="Lidl Prague 2026 estimate — not from a real receipt yet"
+														className="rounded border border-amber-700 bg-amber-900/30 px-1 py-0.5 text-[10px] uppercase tracking-wider text-amber-300"
+													>
+														def
+													</span>
+												) : (
+													<span
+														title={
+															i.default_package_price != null
+																? `Real price · default was ${i.default_package_price.toFixed(2)} ${i.currency} (${pctDelta(i.package_price, i.default_package_price)})`
+																: "Real price"
+														}
+														className="rounded border border-emerald-700 bg-emerald-900/30 px-1 py-0.5 text-[10px] uppercase tracking-wider text-emerald-300"
+													>
+														real
+													</span>
+												)}
+											</span>
+										) : (
+											"—"
+										)}
 									</td>
 									<td className="px-3 py-2 text-right font-mono text-zinc-400">
 										{i.kcal_per_100g != null ? i.kcal_per_100g : "—"}

@@ -75,7 +75,25 @@ export async function updateIngredient(
 		return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 	}
 	const supabase = await createClient();
-	const { error } = await supabase.from("ingredients").update(parsed.data).eq("id", id);
+
+	// Compare the submitted price against the seeded default. Anything that
+	// differs (including null) is treated as a real, manually-entered value,
+	// so the badge and the % delta can update accordingly.
+	const { data: prior } = await supabase
+		.from("ingredients")
+		.select("default_package_price")
+		.eq("id", id)
+		.single();
+	const newPrice = parsed.data.package_price;
+	const defaultPrice = (prior as { default_package_price?: number | null } | null)
+		?.default_package_price;
+	const priceIsDefault =
+		defaultPrice != null && newPrice != null && Math.abs(newPrice - defaultPrice) < 1e-9;
+
+	const { error } = await supabase
+		.from("ingredients")
+		.update({ ...parsed.data, price_is_default: priceIsDefault })
+		.eq("id", id);
 	if (error) {
 		return { ok: false, error: error.message };
 	}
