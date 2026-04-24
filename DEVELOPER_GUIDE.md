@@ -95,22 +95,26 @@ SmartMealPlanner/
 
 Each phase ends in a **deployable, demoable increment**.
 
-### Phase 0 — Bootstrap (foundation only)
+### Phase 0 — Bootstrap (foundation only) — ✅ done
 
 Goal: empty app deployable to Vercel, CI green, DB connected.
 
-- [ ] `pnpm create next-app@latest SmartMealPlanner --ts --tailwind --app --src-dir --turbopack --import-alias "@/*"` (skip the ESLint prompt — we use Biome).
-- [ ] `pnpm add -D @biomejs/biome` and `pnpm biome init`; add `lint`/`format` scripts.
-- [ ] `pnpm add @tanstack/react-query zod @t3-oss/env-nextjs lucide-react` and run `pnpm dlx shadcn@latest init`.
-- [ ] `pnpm add drizzle-orm postgres @supabase/supabase-js @supabase/ssr` and `pnpm add -D drizzle-kit`.
-- [ ] `pnpm add ai @ai-sdk/google @ai-sdk/openai` (Vercel AI SDK + providers).
-- [ ] `pnpm add @upstash/redis @upstash/ratelimit`.
-- [ ] Init Supabase project, save URL + anon + service keys; create Upstash Redis instance.
-- [ ] Wire `lib/db/client.ts` (Drizzle over Supabase Postgres) and `lib/env.ts`.
-- [ ] Add GitHub Actions: `biome ci`, `typecheck`, `test`, `build`.
+- [x] Scaffold Next.js 16 + TS + Tailwind 4 + Turbopack via `create-next-app`, pnpm-only.
+- [x] Biome configured (`biome.json`) with `lint` / `format` / `ci:check` scripts.
+- [x] Core deps installed: `@tanstack/react-query`, `zod`, `@t3-oss/env-nextjs`, `lucide-react`.
+- [x] `src/lib/env.ts` validates env vars at boot via `@t3-oss/env-nextjs` + Zod.
+- [x] `src/lib/query-provider.tsx` wired into `RootLayout`.
+- [x] Vitest configured with `@/*` alias; first unit test (`tests/unit/phases.test.ts`).
+- [x] GitHub Actions CI: install → Biome → typecheck → test → build.
+- [x] `.env.example` with all keys validated by `lib/env.ts`.
+- [ ] Create Supabase project, save URL + anon + service keys (deferred to Phase 1 boundary).
+- [ ] Create Upstash Redis instance (deferred to Phase 4 boundary).
 - [ ] Connect repo to Vercel; verify `https://smart-meal-planner.vercel.app` works.
-- [ ] Configure PWA with **Serwist**: manifest + icons + service worker.
-- [ ] Set up Husky + commitlint for Conventional Commits.
+- [ ] Init `shadcn/ui` (deferred until first real UI work in Phase 1).
+- [ ] Configure PWA with **Serwist**: manifest + icons + service worker (deferred to Phase 5).
+- [ ] Set up Husky + commitlint for Conventional Commits (optional polish).
+
+> **Why some items are deferred:** they require external accounts (Supabase, Upstash, Vercel) or only become useful when their consumer feature ships. The bootstrap is "deployable" and "CI-green" without them.
 
 ### Phase 1 — Ingredient & recipe catalogue (read/write)
 
@@ -226,24 +230,31 @@ Goal: photo of a ticket → updated price catalogue.
 
 ## 3. Local development
 
-Prereqs: Node 20+, **pnpm 9+** (`corepack enable && corepack prepare pnpm@latest --activate`), Supabase CLI, a Gemini API key.
+Prereqs: Node 20+, **pnpm 9+** (`corepack enable && corepack prepare pnpm@9 --activate`). Supabase CLI and a Gemini API key are only needed from Phase 1 / Phase 4 respectively.
 
 ```bash
 # 1. install
 pnpm install
 
-# 2. start a local Supabase stack (optional but recommended)
-supabase start
-
-# 3. apply migrations + seed
-pnpm db:migrate          # drizzle-kit push / migrate
-pnpm db:seed             # tsx scripts/seed.ts
-
-# 4. run dev server (Turbopack)
+# 2. run dev server (Turbopack)
 pnpm dev
+
+# Phase 1+ (not yet wired):
+# supabase start            # local Postgres + storage stack
+# pnpm db:migrate           # drizzle-kit push / migrate
+# pnpm db:seed              # tsx scripts/seed.ts
 ```
 
-`.env.local` keys (all validated at build time by `lib/env.ts`):
+### Behind a corporate proxy (e.g. Zscaler / Artifactory)
+
+If `pnpm install` fails with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` you are behind a TLS-intercepting proxy. Point pnpm at the corporate registry instead:
+
+```bash
+pnpm config set registry https://artifactory.insim.biz/artifactory/api/npm/nn-npm/
+# (auth token already lives in ~/.npmrc on managed laptops)
+```
+
+`.env.local` keys (all validated at build time by [`src/lib/env.ts`](src/lib/env.ts) — add a key there *before* adding it to `.env.local`):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
@@ -257,6 +268,8 @@ UPSTASH_REDIS_REST_TOKEN=
 SENTRY_DSN=                         # optional
 NEXT_PUBLIC_POSTHOG_KEY=            # optional
 ```
+
+For Phase 0 / development you can leave them all empty — every key is `.optional()` in `lib/env.ts`. Set `SKIP_ENV_VALIDATION=1` to bypass validation entirely (used by CI builds).
 
 ---
 

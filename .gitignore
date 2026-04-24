@@ -7,26 +7,37 @@ Thumbs.db
 .idea/
 *.swp
 
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-env/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Node
+# Dependencies
 node_modules/
-dist/
-build/
+.pnp
+.pnp.*
+
+# Build output
 .next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
 coverage/
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
 # Env / secrets
 .env
 .env.*
 !.env.example
+*.pem
+
+# Vercel
+.vercel
+
+# Misc tooling
+.turbo/
