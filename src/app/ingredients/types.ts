@@ -19,4 +19,5 @@ export interface IngredientRow {
 	fiber_per_100g: number | null;
 	g_per_unit: number | null;
 	density_g_per_ml: number | null;
+	micros_per_100g: Record<string, number> | null;
 }

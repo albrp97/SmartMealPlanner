@@ -171,7 +171,7 @@ Once Phase 5 brings Vercel into the loop with `DATABASE_URL` in env, we can also
 
 > **Hard rule:** `unit` must be one of `g | ml | unit` — no `lata`, `cucharadita`, `bote`, etc. The seed script does *not* convert; ambiguous quantities should be expressed in grams or millilitres with the original wording in `note`.
 
-### Phase 2 — Costing, macros & micronutrients engine — 🚧 in progress
+### Phase 2 — Costing, macros & micronutrients engine — ✅ done
 
 Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and** micronutrients/plate.
 
@@ -191,7 +191,7 @@ Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and**
 - [x] Backfill `g_per_unit` + `density_g_per_ml` for the produce/dairy/canned ingredients via [`scripts/backfill-units.ts`](scripts/backfill-units.ts) (`pnpm db:backfill-units`). 28/49 covered; the rest are already-in-g ingredients (rice, pasta, chicken…) or supplements where `is_supplement=true` bypasses conversion.
 - [x] Ingredient form: `g_per_unit` and `density_g_per_ml` editable in a new "Unit conversion" card.
 - [x] Cost: `mode = "shopping"` (round up to whole packages) added to [`src/lib/cost.ts`](src/lib/cost.ts) alongside the default `"consumed"` mode. Recipe page shows both the proportional total and the round-up total. Tested with 3 new shopping-mode cases (rounding 1.2→2, exact-match equivalence, single partial bag).
-- [ ] Micros: extend `lookupNutrition` and the schema to surface sodium / iron / vitamin C / calcium; render as % of RDA bars on the recipe page.
+- [x] Micros: [`lookupNutrition`](src/lib/nutrition-lookup.ts) now extracts `sodium_mg / calcium_mg / iron_mg / vitamin_c_mg` (g→mg) into a `micros` bag. The nutrition engine sums them as a sparse JSON record (`micros_per_100g` JSONB column already existed), the ingredient form persists them via a hidden field, and the recipe page renders RDA bars per serving with EU NRV references in [`src/lib/rda.ts`](src/lib/rda.ts). Backfill: `pnpm db:backfill-micros` filled 41/49 ingredients (8 skipped: GymBeam supplements + a couple of OFF entries with empty nutriments).
 
 ### Phase 3 — Meal planner & shopping list
 

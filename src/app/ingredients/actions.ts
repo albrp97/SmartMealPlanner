@@ -43,6 +43,7 @@ function parseForm(formData: FormData) {
 		fiber_per_100g: formData.get("fiber_per_100g"),
 		g_per_unit: formData.get("g_per_unit"),
 		density_g_per_ml: formData.get("density_g_per_ml"),
+		micros_per_100g: formData.get("micros_per_100g"),
 	};
 	return ingredientInputSchema.safeParse(raw);
 }

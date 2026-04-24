@@ -99,4 +99,26 @@ describe("computeRecipeNutrition", () => {
 		const out = computeRecipeNutrition([{ ingredient: rice, quantity: 100, unit: "g" }], 0);
 		expect(out.perServing.kcal).toBe(360);
 	});
+
+	it("scales sparse micros and divides by servings", () => {
+		const spinach = {
+			isSupplement: false,
+			gPerUnit: null,
+			densityGPerMl: null,
+			kcalPer100g: 23,
+			proteinPer100g: 2.9,
+			carbsPer100g: 3.6,
+			fatPer100g: 0.4,
+			fiberPer100g: 2.2,
+			microsPer100g: { iron_mg: 2.7, calcium_mg: 99 },
+		};
+		const out = computeRecipeNutrition(
+			[{ ingredient: spinach, quantity: 200, unit: "g" }], // 2x
+			2,
+		);
+		// total iron = 5.4 mg, per serving = 2.7
+		expect(out.totalMicros.iron_mg).toBe(5.4);
+		expect(out.perServingMicros.iron_mg).toBe(2.7);
+		expect(out.perServingMicros.calcium_mg).toBe(99);
+	});
 });

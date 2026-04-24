@@ -24,6 +24,13 @@ export interface NutritionMacros {
 	fiber: number;
 }
 
+/**
+ * Micros are a sparse bag keyed by `<name>_<unit>` (e.g. `sodium_mg`,
+ * `iron_mg`). Storing them as a free-form record keeps the schema
+ * extensible — `ingredients.micros_per_100g` is JSONB.
+ */
+export type Micros = Record<string, number>;
+
 export interface NutritionIngredient extends UnitConvertibleIngredient {
 	isSupplement: boolean;
 	kcalPer100g: number | null;
@@ -31,6 +38,8 @@ export interface NutritionIngredient extends UnitConvertibleIngredient {
 	carbsPer100g: number | null;
 	fatPer100g: number | null;
 	fiberPer100g: number | null;
+	/** Per-100 g (or per-serving for supplements). May be null or partial. */
+	microsPer100g?: Micros | null;
 }
 
 export interface NutritionLineInput {
@@ -41,6 +50,7 @@ export interface NutritionLineInput {
 
 export interface NutritionLineResult {
 	macros: NutritionMacros | null;
+	micros: Micros | null;
 	reason?: "no_nutrition" | "missing_g_per_unit";
 }
 
@@ -49,6 +59,10 @@ export interface RecipeNutritionResult {
 	total: NutritionMacros;
 	/** total / servings, rounded for display. */
 	perServing: NutritionMacros;
+	/** Sum of micros across all lines (sparse). */
+	totalMicros: Micros;
+	/** Per-serving micros (sparse). */
+	perServingMicros: Micros;
 	lines: NutritionLineResult[];
 	/** True if any line could not be computed (missing macros or unit data). */
 	missing: boolean;
@@ -60,15 +74,21 @@ function scale(per100g: number | null, factor: number): number {
 	return per100g == null ? 0 : per100g * factor;
 }
 
+function scaleMicros(micros: Micros | null | undefined, factor: number): Micros {
+	if (!micros) return {};
+	const out: Micros = {};
+	for (const [k, v] of Object.entries(micros)) {
+		if (typeof v === "number" && Number.isFinite(v)) out[k] = v * factor;
+	}
+	return out;
+}
+
 export function computeLineNutrition(input: NutritionLineInput): NutritionLineResult {
 	const { ingredient, quantity, unit } = input;
 
 	if (ingredient.isSupplement) {
-		// Per-serving fields; quantity is servings (typically 1 unit = 1 serving).
-		// We accept any unit here — supplements rarely use g/ml meaningfully in recipes,
-		// but if they do (e.g. 5 g of creatine = 1 scoop) we still treat quantity as servings.
 		if (ingredient.kcalPer100g == null) {
-			return { macros: null, reason: "no_nutrition" };
+			return { macros: null, micros: null, reason: "no_nutrition" };
 		}
 		return {
 			macros: {
@@ -78,16 +98,17 @@ export function computeLineNutrition(input: NutritionLineInput): NutritionLineRe
 				fat: scale(ingredient.fatPer100g, quantity),
 				fiber: scale(ingredient.fiberPer100g, quantity),
 			},
+			micros: scaleMicros(ingredient.microsPer100g, quantity),
 		};
 	}
 
 	if (ingredient.kcalPer100g == null) {
-		return { macros: null, reason: "no_nutrition" };
+		return { macros: null, micros: null, reason: "no_nutrition" };
 	}
 
 	const conv = toGrams(quantity, unit, ingredient);
 	if (conv.grams == null) {
-		return { macros: null, reason: "missing_g_per_unit" };
+		return { macros: null, micros: null, reason: "missing_g_per_unit" };
 	}
 	const factor = conv.grams / 100;
 	return {
@@ -98,6 +119,7 @@ export function computeLineNutrition(input: NutritionLineInput): NutritionLineRe
 			fat: scale(ingredient.fatPer100g, factor),
 			fiber: scale(ingredient.fiberPer100g, factor),
 		},
+		micros: scaleMicros(ingredient.microsPer100g, factor),
 	};
 }
 
@@ -111,6 +133,12 @@ function addMacros(a: NutritionMacros, b: NutritionMacros): NutritionMacros {
 	};
 }
 
+function addMicros(a: Micros, b: Micros): Micros {
+	const out: Micros = { ...a };
+	for (const [k, v] of Object.entries(b)) out[k] = (out[k] ?? 0) + v;
+	return out;
+}
+
 function roundMacros(m: NutritionMacros): NutritionMacros {
 	return {
 		kcal: Math.round(m.kcal),
@@ -121,12 +149,22 @@ function roundMacros(m: NutritionMacros): NutritionMacros {
 	};
 }
 
+function roundMicros(m: Micros): Micros {
+	const out: Micros = {};
+	for (const [k, v] of Object.entries(m)) out[k] = Math.round(v * 10) / 10;
+	return out;
+}
+
 export function computeRecipeNutrition(
 	lines: NutritionLineInput[],
 	servings: number,
 ): RecipeNutritionResult {
 	const results = lines.map(computeLineNutrition);
 	const total = results.reduce((acc, r) => (r.macros ? addMacros(acc, r.macros) : acc), ZERO);
+	const totalMicros = results.reduce(
+		(acc, r) => (r.micros ? addMicros(acc, r.micros) : acc),
+		{} as Micros,
+	);
 	const safeServings = servings > 0 ? servings : 1;
 	const perServing: NutritionMacros = {
 		kcal: total.kcal / safeServings,
@@ -135,10 +173,14 @@ export function computeRecipeNutrition(
 		fat: total.fat / safeServings,
 		fiber: total.fiber / safeServings,
 	};
+	const perServingMicros: Micros = {};
+	for (const [k, v] of Object.entries(totalMicros)) perServingMicros[k] = v / safeServings;
 	const missing = results.some((r) => r.macros == null);
 	return {
 		total: roundMacros(total),
 		perServing: roundMacros(perServing),
+		totalMicros: roundMicros(totalMicros),
+		perServingMicros: roundMicros(perServingMicros),
 		lines: results,
 		missing,
 	};
