@@ -382,6 +382,29 @@ If Gemini free tier ever lapses → switch to OpenAI `gpt-4o-mini` (~ €0.0001 
 
 - Barcode scanning to add ingredients faster.
 - Voice input ("add chicken in sauce to Tuesday").
+- **Smart N-day meal-plan recommender.** Generate a coherent plan for *N*
+  days that:
+  1. **Avoids redundancy** — no "curry for lunch + Japanese curry for
+     dinner", no "yakisoba + fried rice" the same day. Compare recipes by
+     category, cuisine tags, dominant ingredients, and a flavour-profile
+     embedding (sweet/spicy/umami/acidic). Penalise pairs above a similarity
+     threshold within the same day and within a 2-day window.
+  2. **Hits macro/calorie targets** per day (kcal, protein, carbs, fat) with
+     a tolerance band; treat the per-day macro deficit as part of the cost
+     function so the optimiser balances variety with the user's targets.
+  3. **Respects per-recipe span** — each recipe declares "I will eat this
+     for *y* days" (leftovers); the planner reuses the same cook session
+     across consecutive days to cut prep time.
+  4. **Optimises shopping cost** — sums ingredient quantities across the
+     plan, picks pack sizes from `price_history`, and prefers recipes that
+     share ingredients (one onion, one bag of rice covers three meals).
+  5. **Respects perishability** — schedule fresh chicken / fish / leafy
+     greens early in the week; cabbage, carrots, dry pasta, frozen items
+     can land later. Each ingredient gets a `shelf_life_days` (fridge /
+     pantry / freezer) so the planner doesn't ask you to cook day-7 salmon.
+  Implementation sketch: ILP / weighted-CSP over candidate recipes, with
+  the LLM only used to (a) tag flavour profiles when seeding new recipes
+  and (b) explain the resulting plan in natural language.
 - **LLM-assisted duplicate detection on create.** When the user submits a new
   ingredient or recipe, run a similarity check (embedding + name/slug fuzzy
   match, then an LLM judge) against the existing catalogue. If a likely

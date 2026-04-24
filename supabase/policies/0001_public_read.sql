@@ -10,12 +10,13 @@ declare
 	t text;
 begin
 	foreach t in array array[
+		'ingredient_categories',
 		'ingredients',
+		'recipe_categories',
 		'recipes',
 		'recipe_ingredients',
-		'recipe_categories',
 		'stores',
-		'price_snapshots'
+		'price_history'
 	]
 	loop
 		execute format('alter table public.%I enable row level security;', t);
