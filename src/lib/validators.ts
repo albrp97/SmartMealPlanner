@@ -25,6 +25,11 @@ const slugSchema = z
 const positiveNumber = z.coerce.number().positive("must be > 0");
 const nonNegativeNumber = z.coerce.number().min(0);
 
+/** Optional non-negative number that comes from a form (string or empty string). */
+const optionalNonNegative = z
+	.union([z.literal(""), nonNegativeNumber])
+	.transform((v) => (v === "" ? null : v));
+
 export const ingredientInputSchema = z.object({
 	slug: slugSchema,
 	name: z.string().trim().min(1, "name required").max(120),
@@ -54,6 +59,13 @@ export const ingredientInputSchema = z.object({
 		.max(500)
 		.optional()
 		.transform((v) => (v && v.length > 0 ? v : null)),
+	// Nutrition per 100 g/ml. All optional — the form's "lookup nutrition"
+	// button (and the backfill script) populate these from OpenFoodFacts.
+	kcal_per_100g: optionalNonNegative,
+	protein_per_100g: optionalNonNegative,
+	carbs_per_100g: optionalNonNegative,
+	fat_per_100g: optionalNonNegative,
+	fiber_per_100g: optionalNonNegative,
 });
 
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;

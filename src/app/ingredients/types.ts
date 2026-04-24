@@ -12,4 +12,9 @@ export interface IngredientRow {
 	is_supplement: boolean;
 	brand: string | null;
 	notes: string | null;
+	kcal_per_100g: number | null;
+	protein_per_100g: number | null;
+	carbs_per_100g: number | null;
+	fat_per_100g: number | null;
+	fiber_per_100g: number | null;
 }

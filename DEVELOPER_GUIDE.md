@@ -133,7 +133,11 @@ Goal: full CRUD on ingredients and recipes, seeded from the user's list.
 - [x] **Cost helper** ([`src/lib/cost.ts`](src/lib/cost.ts)) — proportional per-line cost (`needed / package_size × package_price`), no implicit unit conversion, flags lines with missing prices or mismatched units.
 - [x] Vitest tests for `slugify` + `computeRecipeCost` (13 tests passing).
 - [x] **Recipe create/edit form** with embedded ingredient editor (add/remove/edit rows). Pages: `/recipes/new`, `/recipes/[slug]/edit`. Server Action serialises rows via a hidden JSON field; updates do delete-then-insert on `recipe_ingredients` (simple, fine for personal scale).
-- [ ] Optional polish: install **shadcn/ui** primitives and replace the hand-rolled inputs.
+- [x] **shadcn-style UI primitives** ([`src/components/ui/`](src/components/ui/)) — hand-rolled `Button`, `Card`, `Input`, `Textarea`, `Select`, `Label`, `FieldError`, `FormField` + a `cn()` helper backed by `clsx` + `tailwind-merge`. We deliberately skip the shadcn CLI (Tailwind 4 + Next 16 friction) and own the small surface area in-repo. Ingredient form refactored to use them.
+- [x] **OpenFoodFacts nutrition lookup** ([`src/lib/nutrition-lookup.ts`](src/lib/nutrition-lookup.ts)) wired two ways:
+  - In the ingredient form: a *Lookup nutrition* button (Server Action) prefills kcal + macros + fibre from the typed name.
+  - As a one-shot script: `pnpm db:backfill-nutrition` updates every ingredient where `kcal_per_100g IS NULL` (42/49 matched on the seed set; the 7 misses are GymBeam supplements with no public OFF entry).
+  - Uses the new `search.openfoodfacts.org` endpoint (the legacy `/cgi/search.pl` is currently 503-ing); falls back through `energy-kcal_100g` → `energy-kj_100g ÷ 4.184`; scores hits by macro completeness so brand junk doesn't beat plain ingredients.
 
 #### Migration workflow (corp network workaround)
 
