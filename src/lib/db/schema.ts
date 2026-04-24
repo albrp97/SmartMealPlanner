@@ -65,6 +65,13 @@ export const ingredients = pgTable(
 		carbsPer100g: doublePrecision("carbs_per_100g"),
 		fatPer100g: doublePrecision("fat_per_100g"),
 		fiberPer100g: doublePrecision("fiber_per_100g"),
+		// Unit conversion metadata. Both nullable; we degrade gracefully when missing.
+		// `g_per_unit`: weight of one whole item (e.g. one egg ≈ 60 g, one onion ≈ 150 g).
+		//   Required to compute nutrition for `sold_as = "unit"` ingredients used in g.
+		// `density_g_per_ml`: for liquids when the recipe asks ml but nutrition is per 100 g
+		//   (e.g. olive oil ≈ 0.92, milk ≈ 1.03). Defaults to 1.0 at the call site.
+		gPerUnit: doublePrecision("g_per_unit"),
+		densityGPerMl: doublePrecision("density_g_per_ml"),
 		// Free-form micros bag (vit_a_ug, iron_mg, …) keyed for later analytics.
 		microsPer100g: jsonb("micros_per_100g"),
 		notes: text("notes"),
