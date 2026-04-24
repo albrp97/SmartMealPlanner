@@ -37,12 +37,20 @@ export default async function RecipesPage() {
 					<h1 className="text-2xl font-semibold tracking-tight">Recipes</h1>
 					<p className="text-sm text-zinc-400">{recipes.length} recipes · click for cost preview</p>
 				</div>
-				<Link
-					href="/ingredients"
-					className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500"
-				>
-					Ingredients →
-				</Link>
+				<div className="flex gap-2">
+					<Link
+						href="/ingredients"
+						className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500"
+					>
+						Ingredients →
+					</Link>
+					<Link
+						href="/recipes/new"
+						className="rounded-md border border-emerald-700 bg-emerald-600/20 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-600/30"
+					>
+						+ New
+					</Link>
+				</div>
 			</header>
 
 			{error ? (

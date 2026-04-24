@@ -57,3 +57,58 @@ export const ingredientInputSchema = z.object({
 });
 
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;
+
+/**
+ * Recipe + nested ingredient lines.
+ *
+ * Lines come from a JSON-encoded hidden field on the form (the rows are
+ * managed client-side, then serialised on submit). Each line references an
+ * existing ingredient by id; creating brand new ingredients from inside the
+ * recipe form is intentionally out of scope.
+ */
+export const recipeIngredientLineSchema = z.object({
+	ingredient_id: z.string().uuid("pick an ingredient"),
+	quantity: positiveNumber,
+	unit: z.enum(PACKAGE_UNITS),
+	notes: z
+		.string()
+		.trim()
+		.max(200)
+		.optional()
+		.transform((v) => (v && v.length > 0 ? v : null)),
+});
+
+export const recipeInputSchema = z.object({
+	slug: slugSchema,
+	name: z.string().trim().min(1, "name required").max(120),
+	category_id: z
+		.string()
+		.trim()
+		.max(60)
+		.optional()
+		.transform((v) => (v && v.length > 0 ? v : null)),
+	servings: z.coerce.number().int().min(1, "≥ 1").max(50),
+	meal_type: z.enum(MEAL_TYPES),
+	prep_minutes: z
+		.union([z.literal(""), z.coerce.number().int().min(0)])
+		.transform((v) => (v === "" ? null : v)),
+	cook_minutes: z
+		.union([z.literal(""), z.coerce.number().int().min(0)])
+		.transform((v) => (v === "" ? null : v)),
+	instructions_md: z
+		.string()
+		.trim()
+		.max(5000)
+		.optional()
+		.transform((v) => (v && v.length > 0 ? v : null)),
+	notes: z
+		.string()
+		.trim()
+		.max(500)
+		.optional()
+		.transform((v) => (v && v.length > 0 ? v : null)),
+	ingredients: z.array(recipeIngredientLineSchema),
+});
+
+export type RecipeInput = z.infer<typeof recipeInputSchema>;
+export type RecipeIngredientLine = z.infer<typeof recipeIngredientLineSchema>;

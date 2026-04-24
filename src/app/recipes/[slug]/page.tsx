@@ -70,15 +70,23 @@ export default async function RecipeDetailPage({
 
 	return (
 		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
-			<header className="space-y-1">
-				<Link href="/recipes" className="text-xs text-zinc-500 hover:text-zinc-300">
-					← Recipes
+			<header className="flex items-end justify-between gap-4">
+				<div className="space-y-1">
+					<Link href="/recipes" className="text-xs text-zinc-500 hover:text-zinc-300">
+						← Recipes
+					</Link>
+					<h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
+					<p className="font-mono text-xs text-zinc-500">
+						{recipe.category_id ?? "uncategorised"} · {recipe.meal_type} · {recipe.servings}{" "}
+						{recipe.servings === 1 ? "serving" : "servings"}
+					</p>
+				</div>
+				<Link
+					href={`/recipes/${recipe.slug}/edit`}
+					className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500"
+				>
+					Edit →
 				</Link>
-				<h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
-				<p className="font-mono text-xs text-zinc-500">
-					{recipe.category_id ?? "uncategorised"} · {recipe.meal_type} · {recipe.servings}{" "}
-					{recipe.servings === 1 ? "serving" : "servings"}
-				</p>
 			</header>
 
 			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
