@@ -1,5 +1,6 @@
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
+import { GOALS, GOAL_LABEL, type Goal, TARGETS, isGoal, pct } from "@/lib/goals";
 import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
 import { RDA, rdaPercent } from "@/lib/rda";
 import Link from "next/link";
@@ -35,10 +36,15 @@ interface RecipeIngredientRow {
 
 export default async function RecipeDetailPage({
 	params,
+	searchParams,
 }: {
 	params: Promise<{ slug: string }>;
+	searchParams: Promise<{ goal?: string }>;
 }) {
 	const { slug } = await params;
+	const { goal: goalParam } = await searchParams;
+	const goal: Goal = isGoal(goalParam) ? goalParam : "maintain";
+	const target = TARGETS[goal];
 	const supabase = await createClient();
 
 	const { data: recipe, error: recipeErr } = await supabase
@@ -101,6 +107,128 @@ export default async function RecipeDetailPage({
 		}));
 
 	const nutrition = computeRecipeNutrition(nutritionInputs, recipe.servings);
+
+	// --- Day projection ---
+	// Query every recipe with its ingredients in one shot, compute per-serving
+	// macros for each. Breakfast = the "breakfast_daily" recipe (always eaten);
+	// "average other" = mean of every other recipe's per-serving macros, used
+	// as a stand-in for the third meal of the day. The current recipe is
+	// highlighted in the stacked bars.
+	const { data: allRaw } = await supabase
+		.from("recipes")
+		.select(
+			"id, slug, servings, recipe_ingredients(quantity, unit, ingredients(is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g))",
+		);
+
+	interface AllRecipeRow {
+		id: string;
+		slug: string;
+		servings: number;
+		recipe_ingredients: {
+			quantity: number;
+			unit: "g" | "ml" | "unit";
+			ingredients: {
+				is_supplement: boolean;
+				g_per_unit: number | null;
+				density_g_per_ml: number | null;
+				kcal_per_100g: number | null;
+				protein_per_100g: number | null;
+				carbs_per_100g: number | null;
+				fat_per_100g: number | null;
+				fiber_per_100g: number | null;
+			} | null;
+		}[];
+	}
+
+	const allRecipes = ((allRaw ?? []) as unknown as AllRecipeRow[]).map((r) => {
+		const ls: NutritionLineInput[] = (r.recipe_ingredients ?? [])
+			.filter(
+				(
+					l,
+				): l is (typeof r.recipe_ingredients)[number] & {
+					ingredients: NonNullable<(typeof r.recipe_ingredients)[number]["ingredients"]>;
+				} => l.ingredients !== null,
+			)
+			.map((l) => ({
+				ingredient: {
+					isSupplement: l.ingredients.is_supplement,
+					gPerUnit: l.ingredients.g_per_unit,
+					densityGPerMl: l.ingredients.density_g_per_ml,
+					kcalPer100g: l.ingredients.kcal_per_100g,
+					proteinPer100g: l.ingredients.protein_per_100g,
+					carbsPer100g: l.ingredients.carbs_per_100g,
+					fatPer100g: l.ingredients.fat_per_100g,
+					fiberPer100g: l.ingredients.fiber_per_100g,
+				},
+				quantity: l.quantity,
+				unit: l.unit,
+			}));
+		return { slug: r.slug, ps: computeRecipeNutrition(ls, r.servings).perServing };
+	});
+
+	const ZERO_PS = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+	const breakfastPs = allRecipes.find((r) => r.slug === "breakfast_daily")?.ps ?? ZERO_PS;
+	const others = allRecipes.filter((r) => r.slug !== "breakfast_daily" && r.slug !== recipe.slug);
+	const avgOtherPs = others.length
+		? {
+				kcal: others.reduce((a, r) => a + r.ps.kcal, 0) / others.length,
+				protein: others.reduce((a, r) => a + r.ps.protein, 0) / others.length,
+				carbs: others.reduce((a, r) => a + r.ps.carbs, 0) / others.length,
+				fat: others.reduce((a, r) => a + r.ps.fat, 0) / others.length,
+				fiber: others.reduce((a, r) => a + r.ps.fiber, 0) / others.length,
+			}
+		: ZERO_PS;
+	const thisPs = nutrition.perServing;
+	const dayProjection = {
+		kcal: breakfastPs.kcal + thisPs.kcal + avgOtherPs.kcal,
+		protein: breakfastPs.protein + thisPs.protein + avgOtherPs.protein,
+		carbs: breakfastPs.carbs + thisPs.carbs + avgOtherPs.carbs,
+		fat: breakfastPs.fat + thisPs.fat + avgOtherPs.fat,
+	};
+	const isBreakfast = recipe.slug === "breakfast_daily";
+
+	const macroRows = [
+		{
+			key: "kcal" as const,
+			label: "Calories",
+			unit: "kcal",
+			tgt: target.kcal,
+			b: breakfastPs.kcal,
+			t: thisPs.kcal,
+			o: avgOtherPs.kcal,
+			day: dayProjection.kcal,
+		},
+		{
+			key: "protein" as const,
+			label: "Protein",
+			unit: "g",
+			tgt: target.protein,
+			b: breakfastPs.protein,
+			t: thisPs.protein,
+			o: avgOtherPs.protein,
+			day: dayProjection.protein,
+		},
+		{
+			key: "carbs" as const,
+			label: "Carbs",
+			unit: "g",
+			tgt: target.carbs,
+			b: breakfastPs.carbs,
+			t: thisPs.carbs,
+			o: avgOtherPs.carbs,
+			day: dayProjection.carbs,
+		},
+		{
+			key: "fat" as const,
+			label: "Fat",
+			unit: "g",
+			tgt: target.fat,
+			b: breakfastPs.fat,
+			t: thisPs.fat,
+			o: avgOtherPs.fat,
+			day: dayProjection.fat,
+		},
+	];
 
 	return (
 		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
@@ -176,6 +304,87 @@ export default async function RecipeDetailPage({
 					Batch total: {nutrition.total.kcal} kcal · {nutrition.total.protein} g P ·{" "}
 					{nutrition.total.carbs} g C · {nutrition.total.fat} g F
 				</p>
+			</section>
+
+			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+				<div className="flex items-baseline justify-between">
+					<h2 className="text-sm font-medium text-zinc-300">Day projection vs goal</h2>
+					<div className="flex gap-1 font-mono text-[10px]">
+						{GOALS.map((g) => {
+							const active = g === goal;
+							return (
+								<Link
+									key={g}
+									href={`/recipes/${recipe.slug}?goal=${g}`}
+									className={`rounded-md border px-2 py-0.5 ${
+										active
+											? "border-sky-600 bg-sky-600/20 text-sky-200"
+											: "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+									}`}
+								>
+									{GOAL_LABEL[g]}
+								</Link>
+							);
+						})}
+					</div>
+				</div>
+				<p className="mt-1 font-mono text-[10px] text-zinc-600">
+					Stacked bar = breakfast (always) + this recipe (highlighted) + average other recipe (proxy
+					for the third meal). Target: {target.kcal} kcal · {target.protein} g P · {target.carbs} g
+					C · {target.fat} g F.
+				</p>
+				<div className="mt-3 space-y-3">
+					{macroRows.map((row) => {
+						const dayPct = pct(row.day, row.tgt);
+						const breakfastPct = Math.min(100, pct(row.b, row.tgt));
+						const thisPct = Math.min(100 - breakfastPct, pct(row.t, row.tgt));
+						const otherPct = Math.min(100 - breakfastPct - thisPct, pct(row.o, row.tgt));
+						const over = dayPct > 110;
+						const under = dayPct < 85;
+						const statusColor = over
+							? "text-amber-400"
+							: under
+								? "text-zinc-500"
+								: "text-emerald-300";
+						return (
+							<div key={row.key} className="space-y-1">
+								<div className="flex justify-between font-mono text-xs text-zinc-400">
+									<span>{row.label}</span>
+									<span>
+										{Math.round(row.day)} / {row.tgt} {row.unit} ·{" "}
+										<span className={statusColor}>{dayPct}%</span>
+									</span>
+								</div>
+								<div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+									<div
+										className="h-full bg-zinc-600"
+										style={{ width: `${breakfastPct}%` }}
+										title={`Breakfast: ${Math.round(row.b)} ${row.unit}`}
+									/>
+									<div
+										className={`h-full ${isBreakfast ? "bg-zinc-600" : "bg-sky-500"}`}
+										style={{ width: `${thisPct}%` }}
+										title={`This recipe: ${Math.round(row.t)} ${row.unit}`}
+									/>
+									<div
+										className="h-full bg-zinc-700"
+										style={{ width: `${otherPct}%` }}
+										title={`Avg other: ${Math.round(row.o)} ${row.unit}`}
+									/>
+								</div>
+								<div className="flex justify-between font-mono text-[10px] text-zinc-600">
+									<span>
+										☕ {Math.round(row.b)} +{" "}
+										<span className={isBreakfast ? "text-zinc-400" : "text-sky-300"}>
+											{isBreakfast ? "(breakfast above)" : `🍽 ${Math.round(row.t)}`}
+										</span>{" "}
+										+ avg {Math.round(row.o)} {row.unit}
+									</span>
+								</div>
+							</div>
+						);
+					})}
+				</div>
 			</section>
 
 			{Object.keys(nutrition.perServingMicros).length > 0 ? (
