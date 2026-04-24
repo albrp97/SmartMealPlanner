@@ -65,3 +65,37 @@ describe("computeRecipeCost", () => {
 		expect(r.hasUnknown).toBe(false);
 	});
 });
+
+describe("computeRecipeCost — shopping mode", () => {
+	it("rounds up to whole packages and reports count", () => {
+		// 250 g of flour out of a 1 kg bag = 1 whole bag (30 CZK)
+		const r = computeRecipeCost(
+			[{ ingredient: flour, quantity: 250, unit: "g" }],
+			"CZK",
+			"shopping",
+		);
+		expect(r.mode).toBe("shopping");
+		expect(r.total).toBeCloseTo(30, 5);
+		expect(r.lines[0].packages).toBe(1);
+	});
+
+	it("rounds 1.2 packages up to 2", () => {
+		const r = computeRecipeCost(
+			[{ ingredient: flour, quantity: 1200, unit: "g" }], // 1.2 bags
+			"CZK",
+			"shopping",
+		);
+		expect(r.total).toBeCloseTo(60, 5);
+		expect(r.lines[0].packages).toBe(2);
+	});
+
+	it("matches consumed-mode total when quantities are whole packages", () => {
+		const lines = [
+			{ ingredient: flour, quantity: 1000, unit: "g" as const },
+			{ ingredient: onion, quantity: 3, unit: "unit" as const },
+		];
+		const consumed = computeRecipeCost(lines, "CZK", "consumed");
+		const shopping = computeRecipeCost(lines, "CZK", "shopping");
+		expect(shopping.total).toBeCloseTo(consumed.total, 5);
+	});
+});

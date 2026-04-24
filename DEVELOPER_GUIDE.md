@@ -190,7 +190,7 @@ Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and**
 - [x] Recipe list page: kcal/serving column with a `*` partial-data marker.
 - [x] Backfill `g_per_unit` + `density_g_per_ml` for the produce/dairy/canned ingredients via [`scripts/backfill-units.ts`](scripts/backfill-units.ts) (`pnpm db:backfill-units`). 28/49 covered; the rest are already-in-g ingredients (rice, pasta, chicken…) or supplements where `is_supplement=true` bypasses conversion.
 - [x] Ingredient form: `g_per_unit` and `density_g_per_ml` editable in a new "Unit conversion" card.
-- [ ] Cost: `mode = "shopping"` (round up to packages) vs `mode = "consumed"` (current proportional behaviour).
+- [x] Cost: `mode = "shopping"` (round up to whole packages) added to [`src/lib/cost.ts`](src/lib/cost.ts) alongside the default `"consumed"` mode. Recipe page shows both the proportional total and the round-up total. Tested with 3 new shopping-mode cases (rounding 1.2→2, exact-match equivalence, single partial bag).
 - [ ] Micros: extend `lookupNutrition` and the schema to surface sodium / iron / vitamin C / calcium; render as % of RDA bars on the recipe page.
 
 ### Phase 3 — Meal planner & shopping list

@@ -28,9 +28,13 @@ export interface CostLineInput {
 	unit: "g" | "ml" | "unit";
 }
 
+export type CostMode = "consumed" | "shopping";
+
 export interface CostLineResult {
 	cost: number | null;
 	currency: string;
+	/** Whole packages bought (only set in `shopping` mode). */
+	packages?: number;
 	reason?: "no_price" | "unit_mismatch";
 }
 
@@ -39,9 +43,10 @@ export interface RecipeCostResult {
 	total: number;
 	lines: CostLineResult[];
 	hasUnknown: boolean;
+	mode: CostMode;
 }
 
-export function computeLineCost(input: CostLineInput): CostLineResult {
+export function computeLineCost(input: CostLineInput, mode: CostMode = "consumed"): CostLineResult {
 	const { ingredient, quantity, unit } = input;
 	if (ingredient.package_price == null) {
 		return { cost: null, currency: ingredient.currency, reason: "no_price" };
@@ -52,13 +57,25 @@ export function computeLineCost(input: CostLineInput): CostLineResult {
 	if (ingredient.package_size <= 0) {
 		return { cost: null, currency: ingredient.currency, reason: "unit_mismatch" };
 	}
-	const cost = (quantity / ingredient.package_size) * ingredient.package_price;
-	return { cost, currency: ingredient.currency };
+	const ratio = quantity / ingredient.package_size;
+	if (mode === "shopping") {
+		const packages = Math.ceil(ratio);
+		return {
+			cost: packages * ingredient.package_price,
+			currency: ingredient.currency,
+			packages,
+		};
+	}
+	return { cost: ratio * ingredient.package_price, currency: ingredient.currency };
 }
 
-export function computeRecipeCost(lines: CostLineInput[], currency = "CZK"): RecipeCostResult {
-	const results = lines.map(computeLineCost);
+export function computeRecipeCost(
+	lines: CostLineInput[],
+	currency = "CZK",
+	mode: CostMode = "consumed",
+): RecipeCostResult {
+	const results = lines.map((l) => computeLineCost(l, mode));
 	const total = results.reduce((acc, r) => acc + (r.cost ?? 0), 0);
 	const hasUnknown = results.some((r) => r.cost == null);
-	return { currency, total, lines: results, hasUnknown };
+	return { currency, total, lines: results, hasUnknown, mode };
 }
