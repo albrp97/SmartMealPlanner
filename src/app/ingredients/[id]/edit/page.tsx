@@ -12,7 +12,7 @@ export default async function EditIngredientPage({ params }: { params: Promise<{
 	const { data, error } = await supabase
 		.from("ingredients")
 		.select(
-			"id, slug, name, category_id, sold_as, package_size, package_unit, package_price, currency, is_supplement, brand, notes, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g",
+			"id, slug, name, category_id, sold_as, package_size, package_unit, package_price, currency, is_supplement, brand, notes, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, g_per_unit, density_g_per_ml",
 		)
 		.eq("id", id)
 		.maybeSingle();

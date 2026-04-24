@@ -66,6 +66,9 @@ export const ingredientInputSchema = z.object({
 	carbs_per_100g: optionalNonNegative,
 	fat_per_100g: optionalNonNegative,
 	fiber_per_100g: optionalNonNegative,
+	// Unit-conversion metadata used by the nutrition engine.
+	g_per_unit: optionalNonNegative,
+	density_g_per_ml: optionalNonNegative,
 });
 
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;

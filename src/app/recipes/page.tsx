@@ -1,7 +1,25 @@
 import { createClient } from "@/lib/db/client-server";
+import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+interface IngredientForNutrition {
+	is_supplement: boolean;
+	g_per_unit: number | null;
+	density_g_per_ml: number | null;
+	kcal_per_100g: number | null;
+	protein_per_100g: number | null;
+	carbs_per_100g: number | null;
+	fat_per_100g: number | null;
+	fiber_per_100g: number | null;
+}
+
+interface RecipeIngredientRow {
+	quantity: number;
+	unit: "g" | "ml" | "unit";
+	ingredients: IngredientForNutrition | null;
+}
 
 interface RecipeListRow {
 	id: string;
@@ -10,18 +28,43 @@ interface RecipeListRow {
 	servings: number;
 	meal_type: "single_meal" | "batch" | "unknown";
 	category_id: string | null;
+	recipe_ingredients: RecipeIngredientRow[];
 }
 
 export default async function RecipesPage() {
 	const supabase = await createClient();
 	const { data, error } = await supabase
 		.from("recipes")
-		.select("id, slug, name, servings, meal_type, category_id")
+		.select(
+			"id, slug, name, servings, meal_type, category_id, recipe_ingredients(quantity, unit, ingredients(is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g))",
+		)
 		.order("name");
 
-	const recipes = (data ?? []) as RecipeListRow[];
+	const recipes = ((data ?? []) as unknown as RecipeListRow[]).map((r) => {
+		const lines: NutritionLineInput[] = (r.recipe_ingredients ?? [])
+			.filter(
+				(l): l is RecipeIngredientRow & { ingredients: IngredientForNutrition } =>
+					l.ingredients !== null,
+			)
+			.map((l) => ({
+				ingredient: {
+					isSupplement: l.ingredients.is_supplement,
+					gPerUnit: l.ingredients.g_per_unit,
+					densityGPerMl: l.ingredients.density_g_per_ml,
+					kcalPer100g: l.ingredients.kcal_per_100g,
+					proteinPer100g: l.ingredients.protein_per_100g,
+					carbsPer100g: l.ingredients.carbs_per_100g,
+					fatPer100g: l.ingredients.fat_per_100g,
+					fiberPer100g: l.ingredients.fiber_per_100g,
+				},
+				quantity: l.quantity,
+				unit: l.unit,
+			}));
+		const nutrition = computeRecipeNutrition(lines, r.servings);
+		return { ...r, kcalPerServing: nutrition.perServing.kcal, partial: nutrition.missing };
+	});
 
-	const grouped = recipes.reduce<Record<string, RecipeListRow[]>>((acc, r) => {
+	const grouped = recipes.reduce<Record<string, typeof recipes>>((acc, r) => {
 		const key = r.category_id ?? "uncategorised";
 		const bucket = acc[key] ?? [];
 		bucket.push(r);
@@ -76,7 +119,15 @@ export default async function RecipesPage() {
 												{r.meal_type} · {r.servings} {r.servings === 1 ? "serving" : "servings"}
 											</p>
 										</div>
-										<span className="text-xs text-zinc-500">→</span>
+										<div className="flex items-center gap-3 text-right">
+											<span className="font-mono text-xs text-sky-300">
+												{r.kcalPerServing > 0 ? `${r.kcalPerServing} kcal` : "—"}
+												{r.partial ? (
+													<span className="ml-1 text-[10px] text-amber-400">*</span>
+												) : null}
+											</span>
+											<span className="text-xs text-zinc-500">→</span>
+										</div>
 									</Link>
 								</li>
 							))}

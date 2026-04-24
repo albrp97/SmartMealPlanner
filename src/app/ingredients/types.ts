@@ -17,4 +17,6 @@ export interface IngredientRow {
 	carbs_per_100g: number | null;
 	fat_per_100g: number | null;
 	fiber_per_100g: number | null;
+	g_per_unit: number | null;
+	density_g_per_ml: number | null;
 }

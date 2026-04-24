@@ -341,6 +341,48 @@ export function IngredientForm({ mode, initial }: Props) {
 				</div>
 			</Card>
 
+			<Card>
+				<CardHeader>
+					<div>
+						<CardTitle>Unit conversion</CardTitle>
+						<CardDescription>
+							Used by the nutrition engine to convert recipe quantities to grams. Both fields are
+							optional.
+						</CardDescription>
+					</div>
+				</CardHeader>
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<FormRow
+						label="Grams per unit"
+						hint="Average weight of one whole item. Example: egg ≈ 60, onion ≈ 150, tortilla ≈ 50."
+						error={err("g_per_unit")}
+					>
+						<Input
+							name="g_per_unit"
+							type="number"
+							step="0.01"
+							min="0"
+							defaultValue={initial?.g_per_unit ?? ""}
+							placeholder="e.g. 60"
+						/>
+					</FormRow>
+					<FormRow
+						label="Density (g/ml)"
+						hint="Only needed for liquids that aren't ~water. Example: olive oil 0.92, milk 1.03, honey 1.42."
+						error={err("density_g_per_ml")}
+					>
+						<Input
+							name="density_g_per_ml"
+							type="number"
+							step="0.01"
+							min="0"
+							defaultValue={initial?.density_g_per_ml ?? ""}
+							placeholder="e.g. 1.03"
+						/>
+					</FormRow>
+				</div>
+			</Card>
+
 			<div className="flex items-center gap-2 pt-2">
 				<Button type="submit" variant="primary" disabled={pending}>
 					{pending ? "Saving…" : mode === "edit" ? "Save changes" : "Create ingredient"}

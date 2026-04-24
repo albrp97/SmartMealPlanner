@@ -187,10 +187,11 @@ Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and**
 - [x] [`src/lib/nutrition.ts`](src/lib/nutrition.ts): `computeRecipeNutrition(lines, servings)` returns `{ total, perServing, lines, missing }` with rounded macros. Supplements treated per-serving; whole foods scaled by `grams / 100`.
 - [x] Vitest: 5 unit tests + 6 nutrition tests covering g/ml/unit conversion, supplements, missing data, zero servings.
 - [x] Recipe detail page badge: kcal/serving + protein/carbs/fat/fibre + batch total, with a "partial" warning when any ingredient is missing data.
-- [ ] Recipe list page: kcal/serving column (needs a single nested query — deferred until N+1 stays green).
+- [x] Recipe list page: kcal/serving column with a `*` partial-data marker.
+- [x] Backfill `g_per_unit` + `density_g_per_ml` for the produce/dairy/canned ingredients via [`scripts/backfill-units.ts`](scripts/backfill-units.ts) (`pnpm db:backfill-units`). 28/49 covered; the rest are already-in-g ingredients (rice, pasta, chicken…) or supplements where `is_supplement=true` bypasses conversion.
+- [x] Ingredient form: `g_per_unit` and `density_g_per_ml` editable in a new "Unit conversion" card.
 - [ ] Cost: `mode = "shopping"` (round up to packages) vs `mode = "consumed"` (current proportional behaviour).
 - [ ] Micros: extend `lookupNutrition` and the schema to surface sodium / iron / vitamin C / calcium; render as % of RDA bars on the recipe page.
-- [ ] Backfill `g_per_unit` for the most-used unit-priced ingredients (egg, onion, bell pepper, carrot, potato, tortilla wrap, tuna can, beer, yogurt, cream, beans, etc.) — likely a one-shot script with sensible defaults the user can tweak in the form.
 
 ### Phase 3 — Meal planner & shopping list
 
