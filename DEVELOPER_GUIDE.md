@@ -382,6 +382,14 @@ If Gemini free tier ever lapses → switch to OpenAI `gpt-4o-mini` (~ €0.0001 
 
 - Barcode scanning to add ingredients faster.
 - Voice input ("add chicken in sauce to Tuesday").
+- **LLM-assisted duplicate detection on create.** When the user submits a new
+  ingredient or recipe, run a similarity check (embedding + name/slug fuzzy
+  match, then an LLM judge) against the existing catalogue. If a likely
+  duplicate is found, surface it inline ("Did you mean **chicken thigh
+  fillets**? — kcal 161, £4.50/kg, used in 3 recipes") with two actions:
+  *Use existing* (cancels the create and links the user to the match) or
+  *Create anyway* (proceeds with the insert). Same flow for recipes, scoped
+  by category. Helps keep the catalogue clean as it grows.
 - Nutritionix / OpenFoodFacts / USDA FDC integration to autofill macros and micronutrients.
 - Auto-import GymBeam supplement nutrition facts via product-page scraping.
 - Multi-store price comparison ("cheapest store for this week’s list").
