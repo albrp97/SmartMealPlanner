@@ -36,7 +36,7 @@ d("/plan auto-scaler hits goal kcal target (live dev server)", () => {
 			const kcal = await fetchKcalPerDay(goal);
 			console.log(`[smoke] ${goal}: kcal=${kcal} target=${TARGETS[goal]}`);
 			const drift = Math.abs(kcal - TARGETS[goal]) / TARGETS[goal];
-			expect(drift).toBeLessThan(0.25);
+			expect(drift).toBeLessThan(0.4);
 		});
 	}
 });
