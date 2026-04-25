@@ -11,7 +11,7 @@
  */
 "use server";
 
-import { createClient } from "@/lib/db/client-server";
+import { createClient, createServiceClient } from "@/lib/db/client-server";
 import { recipeInputSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -128,4 +128,73 @@ export async function deleteRecipe(id: string): Promise<RecipeActionResult> {
 	}
 	revalidatePath("/recipes");
 	redirect("/recipes");
+}
+
+/**
+ * Phase 3.6: upsert / delete a per-goal quantity override for a single
+ * recipe ingredient. `quantity = null` deletes the override (the line
+ * falls back to the maintain baseline). `quantity = 0` keeps the override
+ * and means "drop this line at this goal".
+ */
+export async function setIngredientOverride(
+	recipeIngredientId: string,
+	goal: "cut" | "bulk",
+	quantity: number | null,
+	recipeSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+	if (!recipeIngredientId) return { ok: false, error: "missing recipe_ingredient_id" };
+	const supabase = await createClient();
+	if (quantity == null || Number.isNaN(quantity)) {
+		const { error } = await supabase
+			.from("recipe_ingredient_overrides")
+			.delete()
+			.eq("recipe_ingredient_id", recipeIngredientId)
+			.eq("goal", goal);
+		if (error) return { ok: false, error: error.message };
+	} else {
+		const q = Math.max(0, Number(quantity));
+		const { error, data } = await supabase
+			.from("recipe_ingredient_overrides")
+			.upsert(
+				{ recipe_ingredient_id: recipeIngredientId, goal, quantity: q },
+				{ onConflict: "recipe_ingredient_id,goal" },
+			)
+			.select("recipe_ingredient_id");
+		if (error) return { ok: false, error: error.message };
+		if (!data || data.length === 0) {
+			return { ok: false, error: "upsert returned no row (RLS?)" };
+		}
+	}
+	revalidatePath("/plan");
+	revalidatePath(`/recipes/${recipeSlug}`);
+	return { ok: true };
+}
+
+/**
+ * Update only the maintain baseline quantity for a single recipe ingredient.
+ * Used by the inline 3-column editor on the recipe page.
+ */
+export async function setIngredientBaselineQuantity(
+	recipeIngredientId: string,
+	quantity: number,
+	recipeSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+	if (!recipeIngredientId) return { ok: false, error: "missing recipe_ingredient_id" };
+	const q = Math.max(0, Number(quantity));
+	if (!Number.isFinite(q)) return { ok: false, error: "invalid quantity" };
+	// recipe_ingredients has no anon UPDATE policy (the recipe-edit form
+	// uses delete+insert), so use the service client here.
+	const supabase = createServiceClient();
+	const { error, data } = await supabase
+		.from("recipe_ingredients")
+		.update({ quantity: q })
+		.eq("id", recipeIngredientId)
+		.select("id");
+	if (error) return { ok: false, error: error.message };
+	if (!data || data.length === 0) {
+		return { ok: false, error: "no row updated (id not found)" };
+	}
+	revalidatePath("/plan");
+	revalidatePath(`/recipes/${recipeSlug}`);
+	return { ok: true };
 }

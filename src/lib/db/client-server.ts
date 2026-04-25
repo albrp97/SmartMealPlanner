@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createBrowserlikeClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 /**
@@ -34,5 +35,18 @@ export async function createClient() {
 				},
 			},
 		},
+	);
+}
+
+/**
+ * Service-role Supabase client. Bypasses RLS — use sparingly, only from
+ * server actions / route handlers / scripts where the privileged op is
+ * justified (e.g. updating tables that don't grant anon UPDATE).
+ */
+export function createServiceClient() {
+	return createBrowserlikeClient(
+		env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+		env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+		{ auth: { persistSession: false, autoRefreshToken: false } },
 	);
 }
