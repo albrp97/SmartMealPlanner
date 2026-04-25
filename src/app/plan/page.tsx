@@ -27,6 +27,7 @@ import {
 	toPortionRecipe,
 } from "@/lib/plan-portion";
 import { findHeroIndex, scalePortion } from "@/lib/portion";
+import { applyGoalOverrides, buildOverrideMap } from "@/lib/recipe-overrides";
 import { recommend } from "@/lib/recommend";
 import Link from "next/link";
 import { PLAN_DATE } from "./constants";
@@ -120,47 +121,55 @@ export default async function PlanPage({
 	const target = TARGETS[goal];
 
 	const supabase = await createClient();
-	const [recipesRes, planRes] = await Promise.all([
+	const [recipesRes, planRes, overridesRes] = await Promise.all([
 		supabase.from("recipes").select(SELECT_RECIPE).order("name"),
 		supabase
 			.from("meal_plan_entries")
 			.select("id, slot, servings, recipe_id")
 			.eq("date", PLAN_DATE)
 			.in("slot", ["lunch", "dinner"]),
+		supabase.from("recipe_ingredient_overrides").select("recipe_ingredient_id, goal, quantity"),
 	]);
 
 	const recipesRaw = (recipesRes.data ?? []) as unknown as RecipeRow[];
 	const plan = (planRes.data ?? []) as unknown as PlanRow[];
+	// Phase 3.10: per-goal overrides feed into the balancer. On cut/bulk
+	// we apply the override map FIRST (drops zero-quantity lines, swaps
+	// in the overridden quantity), then the per-class scalars on top of
+	// the resulting baseline. This means goal-specific tweaks (no cheese
+	// on cut, double rice on bulk, less olive oil at breakfast) are
+	// taken as given and the macro balancer only adjusts what's left.
+	const overrides = buildOverrideMap(
+		(overridesRes.data ?? []) as {
+			recipe_ingredient_id: string;
+			goal: "cut" | "bulk";
+			quantity: number;
+		}[],
+	);
 
-	// Phase 3.8: per-goal three-scalar macro balancer. The user's only
-	// knobs on this page are recipe choice and hero packs. We classify
-	// each scalable side ingredient by its dominant macro (protein /
-	// carb / fat source) and solve a 3×3 linear system so that scaling
-	// each class drives daily P, C and F (and therefore kcal) to the
-	// goal target. Hero lines are not touched (they drive the cook's
-	// serving count via the portion engine), fixed lines (1 onion, 1
-	// stock cube) stay put. Because the scalars depend on what's planned
-	// (which itself depends on hero packs), we run the pipeline twice:
-	// pass 1 measures contributions at scale=1, pass 2 applies the
-	// chosen per-class scalars.
 	function buildRecipes(scales: { P: number; C: number; F: number }): RecipeRow[] {
-		return recipesRaw.map((r) => ({
-			...r,
-			recipe_ingredients: r.recipe_ingredients.map((li) => {
-				// Breakfast is treated as a constant per-day contribution by the
-				// macro balancer — don't scale it.
-				if (r.slug === "breakfast_daily") return li;
-				// Hero scaling happens in scalePortion via heroFactor (so it
-				// doesn't cascade into more servings). Side/fixed lines are
-				// scaled here by adjusting the recipe-line quantity.
-				if (li.role === "hero") return li;
-				const cls = classifyIngredient(ingredientForNutrition(li));
-				if (!cls) return li;
-				const s = scales[cls];
-				if (s === 1) return li;
-				return { ...li, quantity: li.quantity * s };
-			}),
-		}));
+		return recipesRaw.map((r) => {
+			// Apply per-goal overrides up-front. On maintain this is a no-op.
+			const goalApplied = applyGoalOverrides(r.recipe_ingredients, goal, overrides);
+			return {
+				...r,
+				recipe_ingredients: goalApplied.map((li) => {
+					// Breakfast is treated as a constant per-day contribution by the
+					// macro balancer — don't scale it (overrides on breakfast lines
+					// already took effect above).
+					if (r.slug === "breakfast_daily") return li;
+					// Hero scaling happens in scalePortion via heroFactor (so it
+					// doesn't cascade into more servings). Side/fixed lines are
+					// scaled here by adjusting the recipe-line quantity.
+					if (li.role === "hero") return li;
+					const cls = classifyIngredient(ingredientForNutrition(li));
+					if (!cls) return li;
+					const s = scales[cls];
+					if (s === 1) return li;
+					return { ...li, quantity: li.quantity * s };
+				}),
+			};
+		});
 	}
 
 	function ingredientForNutrition(li: RecipeRow["recipe_ingredients"][number]) {
@@ -499,26 +508,26 @@ export default async function PlanPage({
 		};
 	}
 
-	const lunchScored = recommend(
+	// Score against BOTH slots' planned items so the suggestions
+	// diverge from anything currently on the plan (not just the other
+	// slot), then split a single ranked list into two disjoint columns
+	// so lunch and dinner never show the same recipe.
+	const allCategories = [...lunchCategories, ...dinnerCategories];
+	const allHeroes = [...lunchHeroes, ...dinnerHeroes];
+	const ranked = recommend(
 		{
 			candidates: recommendCandidates,
 			excludeIds: allPlannedIds,
-			otherSlotCategoryIds: dinnerCategories,
-			otherSlotHeroSlugs: dinnerHeroes,
+			otherSlotCategoryIds: allCategories,
+			otherSlotHeroSlugs: allHeroes,
 			goal,
 		},
-		3,
+		6,
 	);
-	const dinnerScored = recommend(
-		{
-			candidates: recommendCandidates,
-			excludeIds: allPlannedIds,
-			otherSlotCategoryIds: lunchCategories,
-			otherSlotHeroSlugs: lunchHeroes,
-			goal,
-		},
-		3,
-	);
+	// Interleave so each column gets a mix of high- and mid-ranked
+	// candidates rather than "lunch=top half, dinner=bottom half".
+	const lunchScored = ranked.filter((_, i) => i % 2 === 0).slice(0, 3);
+	const dinnerScored = ranked.filter((_, i) => i % 2 === 1).slice(0, 3);
 
 	const heroNameById = new Map(recommendCandidates.map((c) => [c.id, c.heroName]));
 	const lunchCards: RecommendationCard[] = lunchScored.map((s) => ({

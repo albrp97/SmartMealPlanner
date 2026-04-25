@@ -331,11 +331,16 @@ Single page, no calendar. Renders four sections:
 2. **Lunch** + **Dinner** rows. Each row = a recipe pick + a hero-packs
    counter. Auto-saves via Server Actions in
    [`src/app/plan/actions.ts`](src/app/plan/actions.ts).
-3. **Recommendation panel** (Phase 3.9) — two columns, one per slot,
-   each showing the top-3 candidate recipes ranked by
-   [`src/lib/recommend.ts`](src/lib/recommend.ts). Click "use as lunch /
-   dinner" to swap the suggestion in via `swapOrAddPlanEntry` (replaces
-   the slot's first entry, or adds a fresh one if the slot is empty).
+3. **Recommendation panel** (Phase 3.9) — two columns, one per slot.
+   The page builds a single ranked list of 6 candidates via
+   [`src/lib/recommend.ts`](src/lib/recommend.ts) (variety-penalised
+   against *both* slots' current picks, not just one) and then
+   **interleaves** them into the columns — even-indexed candidates go to
+   lunch, odd-indexed to dinner. This guarantees the two columns are
+   disjoint *and* both get a mix of high- and mid-ranked picks rather
+   than "top-half / bottom-half". Click "use as lunch / dinner" to swap
+   the suggestion in via `swapOrAddPlanEntry` (replaces the slot's first
+   entry, or adds a fresh one if the slot is empty).
 4. **Shopping list** (right column on desktop, below on mobile).
    Aggregated across all rows; rounds non-divisibles up to whole packs.
 
@@ -410,11 +415,22 @@ down — that requires a per-goal breakfast override (see §7.2).
 
 ## 7. Roadmap & known limitations
 
-### 7.1 Plan page is overcrowded — refactor in progress
+Legend: **[done]** shipped to `main` · **[next]** the work-in-progress
+slot · **[idea]** captured but not started.
 
-The `/plan` page is now ~700 lines and does five things: goal pills,
-lunch/dinner pickers, hero-pack counters, macro card, shopping list. Goal:
-break it into smaller components and add a recommendation panel. Sketch:
+| # | Topic | Status |
+|---|---|---|
+| 7.1 | Plan-page decongestion (split into smaller components) | **[next]** |
+| 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
+| 7.3 | Recommendation panel under planner | **[done]** (3.9) |
+| 7.4 | Daily micronutrient roll-up, pantry stock, shopping export, auth, PWA | **[idea]** |
+| 7.5 | Things explicitly NOT building (LLM/OCR) | locked |
+
+### 7.1 Plan page is overcrowded — refactor in progress **[next]**
+
+The `/plan` page is now ~800 lines and does six things: goal pills,
+lunch/dinner pickers, hero-pack counters, macro card, recommendation
+panel, shopping list. Goal: break it into smaller components. Sketch:
 
 ```
 /plan
@@ -422,7 +438,7 @@ break it into smaller components and add a recommendation panel. Sketch:
 ├── <DayMacroCard />                      (existing — header strip)
 ├── <CookSection slot="lunch" />          (lunch picker + hero packs + scaled lines)
 ├── <CookSection slot="dinner" />         (same)
-├── <RecommendationPanel />               (NEW — see §7.3)
+├── <RecommendationPanel />               (shipped — see §7.3)
 └── <ShoppingList />                      (collapsible on mobile)
 ```
 
@@ -431,17 +447,31 @@ The page becomes a server component that fetches once and threads data
 into client subtrees. Shopping list becomes collapsible (`<details>`) on
 mobile so the meal pickers stay above the fold.
 
-### 7.2 Rewire overrides into the balancer
+### 7.2 Rewire overrides into the balancer **[done — Phase 3.10]**
 
-Phase 3.6's `recipe_ingredient_overrides` table is wired in the recipe
-editor but the macro pipeline ignores it. Fix: in
-[`src/app/plan/page.tsx`](src/app/plan/page.tsx)'s `buildRecipes(scales)`,
-apply `applyGoalOverrides(li, goal, overrideMap)` (already exported from
-[`src/lib/recipe-overrides.ts`](src/lib/recipe-overrides.ts)) **before**
-the per-class scalar multiplication. This makes "less oil at breakfast on
-cut" possible without touching the maintain baseline.
+[`src/app/plan/page.tsx`](src/app/plan/page.tsx)'s `buildRecipes(scales)`
+now loads `recipe_ingredient_overrides` once at the top of the page and
+feeds the rows through
+[`buildOverrideMap`](src/lib/recipe-overrides.ts) +
+[`applyGoalOverrides`](src/lib/recipe-overrides.ts) **before** the
+per-class scalar multiplication. Effect:
 
-### 7.3 Recommendation system (v1 shipped)
+- On **maintain**, `applyGoalOverrides` is a no-op (overrides only carry
+  cut/bulk values).
+- On **cut/bulk**, each recipe's lines are first replaced with their
+  override quantity (or dropped if the override is 0); the macro
+  balancer then scales whatever's left. So "less olive oil at breakfast
+  on cut" or "no cheese on cut" can be authored once in the recipe
+  editor and the planner respects it without flailing the scalars.
+- Non-breakfast scaling rules are unchanged: hero lines still drive
+  servings via `heroFactor`, fixed lines still aren't class-scaled.
+
+Follow-up: the smoke-test fat tolerance (±25 %) and the kcal/protein
+tolerance (±10 %) on cut should now tighten, but they're left wide for
+a release cycle until the breakfast overrides are actually authored
+(§4.5).
+
+### 7.3 Recommendation system **[done — Phase 3.9]**
 
 [`src/lib/recommend.ts`](src/lib/recommend.ts) +
 [`src/app/plan/recommendation-panel.tsx`](src/app/plan/recommendation-panel.tsx) +
