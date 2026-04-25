@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 
 function mk(over: Partial<RecommendCandidate>): RecommendCandidate {
 	return {
-		id: over.id ?? "x",
-		name: over.name ?? "X",
-		categoryId: over.categoryId ?? "curry",
-		heroSlug: over.heroSlug ?? "chicken",
-		kcalPerServing: over.kcalPerServing ?? 500,
-		proteinPerServing: over.proteinPerServing ?? 30,
-		costPerServing: over.costPerServing ?? 40,
+		id: "x",
+		name: "X",
+		categoryId: "curry",
+		heroSlug: "chicken",
+		kcalPerServing: 500,
+		proteinPerServing: 30,
+		costPerServing: 40,
+		...over,
 	};
 }
 
