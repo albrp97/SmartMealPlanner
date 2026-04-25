@@ -61,6 +61,13 @@ export interface BalanceResult {
 const MIN_SCALE = 0;
 const MAX_SCALE = 4.0;
 /**
+ * Aim slightly under the kcal target so the resulting plan lands in the
+ * 90–100 % band (the user's preferred range — better to be a touch
+ * under than over). Only the kcal axis of the LSQ target is biased;
+ * protein/carbs/fat targets stay nominal.
+ */
+const KCAL_TARGET_BIAS = 0.95;
+/**
  * Weights for the least-squares objective. kcal matters most (energy
  * balance), then protein (body comp), then carbs and fat. Tuned so a
  * 100-kcal miss costs about as much as an 8 g protein miss.
@@ -146,11 +153,16 @@ export function computeMacroScales(input: BalanceInput): BalanceResult {
 				carbs: m.carbs / days,
 				fat: m.fat / days,
 			};
-			// All cook lines are scalable, including the hero. The hero-packs
-			// choice still drives the number of servings (days of leftovers);
-			// our scalar tunes the per-day amount of each macro class so the
-			// plan lands on its kcal+P+C+F targets. The user explicitly
-			// endorsed scaling heroes ("add more chicken in burritos").
+			// Fixed lines (1 onion, 2 puff pastries, breakfast olive oil) are
+			// NEVER scaled by the planner — see DEVELOPER_GUIDE §4.2. Bucket
+			// them into nonScalable so the balancer's prediction matches what
+			// actually happens at render time. Heroes ARE scaled (clamped
+			// downstream by heroFactor 0.5–1.75) and sides are scaled by the
+			// class scalar; both go into classDaily.
+			if (line.role === "fixed") {
+				nonScalable = add(nonScalable, perDay);
+				continue;
+			}
 			const cls = classifyIngredient(line.ingredient);
 			if (cls) {
 				classDaily[cls] = add(classDaily[cls], perDay);
@@ -190,7 +202,12 @@ export function computeMacroScales(input: BalanceInput): BalanceResult {
 					if (cp === c) continue;
 					predOther += scales[cp] * classDaily[cp][mk];
 				}
-				const K = input.target[mk] - predOther;
+				// Bias kcal target down so we land in the 90–100 % band rather
+				// than straddling 100 %. Overshoot is the worse failure mode
+				// because of fat-heavy fixed lines (puff pastry, cheese,
+				// breakfast olive oil) the balancer can't touch.
+				const aimed = mk === "kcal" ? input.target[mk] * KCAL_TARGET_BIAS : input.target[mk];
+				const K = aimed - predOther;
 				const a = classDaily[c][mk];
 				const w = WEIGHTS[mk];
 				num += w * a * K;

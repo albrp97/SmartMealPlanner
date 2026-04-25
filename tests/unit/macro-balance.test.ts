@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { type BalanceInput, classifyIngredient, computeMacroScales } from "@/lib/macro-balance";
+import { describe, expect, it } from "vitest";
 
 const ing = (kcal: number, p: number, c: number, f: number) => ({
 	gPerUnit: null,
@@ -73,11 +73,13 @@ describe("computeMacroScales", () => {
 			sC * C_class.fatPer100g! +
 			sF * F_class.fatPer100g!;
 		// Bounded LSQ minimises a weighted error across kcal+P+C+F so a
-		// well-conditioned system lands on each macro target within a few
-		// grams (kcal carries the most weight).
-		expect(Math.abs(protein - input.target.protein)).toBeLessThan(5);
-		expect(Math.abs(carbs - input.target.carbs)).toBeLessThan(5);
-		expect(Math.abs(fat - input.target.fat)).toBeLessThan(5);
+		// well-conditioned system lands close to each macro target.
+		// kcal target is biased to 95 % (so the daily plan stays in the
+		// 90–100 % kcal band) which trades a few grams of macro accuracy
+		// for kcal undershoot.
+		expect(Math.abs(protein - input.target.protein)).toBeLessThan(15);
+		expect(Math.abs(carbs - input.target.carbs)).toBeLessThan(15);
+		expect(Math.abs(fat - input.target.fat)).toBeLessThan(15);
 	});
 
 	it("solves a 2×2 system when one class is empty (fat absent)", () => {
