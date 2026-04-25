@@ -159,9 +159,10 @@ export default async function PlanPage({
 					// already took effect above).
 					if (r.slug === "breakfast_daily") return li;
 					// Hero scaling happens in scalePortion via heroFactor (so it
-					// doesn't cascade into more servings). Side/fixed lines are
-					// scaled here by adjusting the recipe-line quantity.
-					if (li.role === "hero") return li;
+					// doesn't cascade into more servings). Fixed lines (1 onion,
+					// 1 stock cube, 2 puff pastries) stay put — see §4.2 in the
+					// developer guide. Only side lines are class-scaled here.
+					if (li.role !== "side") return li;
 					const cls = classifyIngredient(ingredientForNutrition(li));
 					if (!cls) return li;
 					const s = scales[cls];
