@@ -65,6 +65,10 @@ export const ingredients = pgTable(
 		currency: text("currency").notNull().default("CZK"),
 		isSupplement: boolean("is_supplement").notNull().default(false),
 		brand: text("brand"),
+		// Phase 3.5: can this SKU be portioned during cooking without spoilage?
+		// True for raw meat, rice, pasta, oils. False for onions, cheese bag,
+		// beans tin, stock cubes — once opened or split they go to waste.
+		divisible: boolean("divisible").notNull().default(true),
 		// Per-100g nutrition (or per-serving for supplements).
 		kcalPer100g: doublePrecision("kcal_per_100g"),
 		proteinPer100g: doublePrecision("protein_per_100g"),
@@ -132,6 +136,11 @@ export const recipeIngredients = pgTable("recipe_ingredients", {
 		.references(() => ingredients.id, { onDelete: "restrict" }),
 	quantity: doublePrecision("quantity").notNull(),
 	unit: text("unit", { enum: ["g", "ml", "unit"] }).notNull(),
+	// Phase 3.5 portion optimiser:
+	//   hero  — drives portion sizing (the protein you scale around)
+	//   side  — scales linearly with the hero (rice, pasta, cream)
+	//   fixed — stays put regardless of batch size (1 onion, 1 stock cube)
+	role: text("role", { enum: ["hero", "side", "fixed"] }).notNull().default("side"),
 	notes: text("notes"),
 	position: integer("position").notNull().default(0),
 });
@@ -189,3 +198,19 @@ export type NewIngredient = typeof ingredients.$inferInsert;
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
+
+/**
+ * Phase 3.6: per-goal ingredient quantity overrides.
+ *
+ * Maintain is implicit (the existing `recipe_ingredients.quantity`). cut /
+ * bulk store sparse rows here only when the quantity differs from maintain.
+ * `quantity = 0` means the ingredient is dropped for that goal.
+ */
+export const recipeIngredientOverrides = pgTable("recipe_ingredient_overrides", {
+	recipeIngredientId: uuid("recipe_ingredient_id")
+		.notNull()
+		.references(() => recipeIngredients.id, { onDelete: "cascade" }),
+	goal: text("goal", { enum: ["cut", "bulk"] }).notNull(),
+	quantity: doublePrecision("quantity").notNull(),
+});
+export type RecipeIngredientOverride = typeof recipeIngredientOverrides.$inferSelect;

@@ -7,8 +7,10 @@ import {
 	computeRecipeNutrition,
 } from "@/lib/nutrition";
 import { RDA, rdaPercent } from "@/lib/rda";
+import { buildOverrideMap } from "@/lib/recipe-overrides";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { GoalQuantitiesEditor } from "./goal-quantities-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +43,10 @@ interface IngredientForCost {
 }
 
 interface RecipeIngredientRow {
+	id: string;
 	quantity: number;
 	unit: "g" | "ml" | "unit";
+	role: "hero" | "side" | "fixed" | null;
 	notes: string | null;
 	position: number;
 	ingredients: IngredientForCost | null;
@@ -74,12 +78,27 @@ export default async function RecipeDetailPage({
 	const { data: linesRaw } = await supabase
 		.from("recipe_ingredients")
 		.select(
-			"quantity, unit, notes, position, ingredients(id, name, package_size, package_unit, package_price, default_package_price, price_is_default, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g)",
+			"id, quantity, unit, role, notes, position, ingredients(id, name, package_size, package_unit, package_price, default_package_price, price_is_default, currency, is_supplement, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g)",
 		)
 		.eq("recipe_id", recipe.id)
 		.order("position");
 
 	const lines = (linesRaw ?? []) as unknown as RecipeIngredientRow[];
+
+	const { data: overridesRaw } = await supabase
+		.from("recipe_ingredient_overrides")
+		.select("recipe_ingredient_id, goal, quantity")
+		.in(
+			"recipe_ingredient_id",
+			lines.map((l) => l.id),
+		);
+	const overrides = buildOverrideMap(
+		(overridesRaw ?? []) as unknown as {
+			recipe_ingredient_id: string;
+			goal: "cut" | "bulk";
+			quantity: number;
+		}[],
+	);
 
 	const costInputs: CostLineInput[] = lines
 		.filter(
@@ -460,6 +479,22 @@ export default async function RecipeDetailPage({
 					</dl>
 				</section>
 			) : null}
+
+			<GoalQuantitiesEditor
+				recipeSlug={recipe.slug}
+				rows={lines.map((l) => {
+					const ov = overrides.get(l.id);
+					return {
+						id: l.id,
+						name: l.ingredients?.name ?? "(missing)",
+						unit: l.unit,
+						role: l.role,
+						maintain: l.quantity,
+						cut: ov?.cut ?? null,
+						bulk: ov?.bulk ?? null,
+					};
+				})}
+			/>
 
 			<section>
 				<h2 className="mb-2 text-sm font-medium text-zinc-300">Ingredients</h2>

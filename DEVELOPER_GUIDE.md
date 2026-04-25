@@ -1,450 +1,539 @@
 # SmartMealPlanner — Developer Guide
 
-End-to-end guide for building, testing, deploying and improving the app. Read this **before** writing code.
+Working reference for the people building and operating this app. **Read
+this first** if you're picking it back up after a break or onboarding a
+collaborator. Updated 2026-04-25.
 
 ---
 
 ## 0. Conventions
 
-- **Language:** TypeScript everywhere (frontend, Server Actions, Route Handlers, scripts).
-- **Runtime / pkg mgr:** Node 20 LTS + **pnpm 9** (lockfile committed; `npm` and `yarn` forbidden).
-- **Style:** **Biome** (lint + format) — single Rust binary, replaces ESLint + Prettier. Enforced on CI.
-- **Type safety end-to-end:** Drizzle (DB) + Zod (boundaries) + `@t3-oss/env-nextjs` (env). No `any`.
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:` …), enforced via `commitlint` + Husky pre-commit.
-- **Branching:** trunk-based — short-lived feature branches → PR → `main` → auto-deploy.
-- **Issue tracker:** GitHub Issues, labelled by phase (`phase-0`, `phase-1`, …).
-- **Secrets:** never commit. Use `.env.local` locally, Vercel + GitHub Secrets in CI/prod.
+- **Language:** TypeScript everywhere (frontend, Server Actions, Route
+  Handlers, scripts). No `any`.
+- **Runtime / pkg mgr:** Node 22 + **pnpm 9** (lockfile committed; npm/yarn
+  forbidden).
+- **Style:** **Biome** (lint + format) — single Rust binary, replaces ESLint
+  + Prettier. Enforced on CI.
+- **Type safety:** Drizzle (DB) + Zod (boundaries) + `@t3-oss/env-nextjs`
+  (env vars).
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/).
+- **Branching:** trunk-based — short-lived feature branches → PR → `main`
+  → auto-deploy on Vercel.
+- **Secrets:** `.env.local` locally, Vercel + GitHub Secrets in CI/prod.
+  Never committed.
 
-### Why this stack (and why not Rust)
+### Stack snapshot
 
-Rust was evaluated as a backend language and rejected for this project. The hot path is `phone → Vercel → Supabase → Gemini → Vercel → phone`, dominated by network latency (1–3 s for the LLM call). A Rust API would save < 1 % of total request time at the cost of doubling the language surface and losing Vercel's zero-config Next.js deploy. We capture the upside of Rust through tooling instead: **Turbopack** (Next dev bundler), **SWC** (TS compiler), **Biome** (lint+format), and **oxc**-based dependencies as they mature.
+| Layer | Choice |
+|---|---|
+| Frontend | Next.js 16 (App Router, Turbopack) · React 19 · TS 5.9 · Tailwind 4 |
+| Hand-rolled UI primitives | `src/components/ui/*` (Button, Card, Input, …) — no shadcn CLI |
+| Backend | Server Actions for mutations, RSC for reads, RLS on Supabase Postgres |
+| ORM | Drizzle 0.45 (schema source of truth) |
+| DB | Supabase Postgres (free tier) |
+| Hosting | Vercel Hobby — auto-deploy from `main` |
+| Tests | Vitest 2 (unit + integration) — Playwright is pencilled in but not wired |
+| Lint/format | Biome |
+| LLM | **Removed.** Receipt OCR was on the roadmap; we dropped it. All catalogue, price and recipe edits are manual now. |
 
 ---
 
-## 1. Repository layout (target)
+## 1. Repository layout
 
 ```
 SmartMealPlanner/
-├── README.md
 ├── DEVELOPER_GUIDE.md           ← you are here
+├── README.md
 ├── .env.example
-├── package.json
-├── pnpm-lock.yaml
-├── next.config.mjs
-├── tailwind.config.ts
-├── tsconfig.json
-├── biome.json                   # lint + format (replaces .eslintrc + .prettierrc)
-├── drizzle.config.ts
-├── vitest.config.ts
-├── playwright.config.ts
-├── public/
-│   ├── icons/                   # PWA icons
-│   └── manifest.webmanifest
-├── migrations/                  # SQL migrations (Supabase CLI)
-│   └── 0001_init.sql
+├── biome.json · drizzle.config.ts · vitest.config.ts · tsconfig.json
+├── migrations/                  # SQL migrations (apply via Supabase SQL Editor)
 ├── seed/
-│   ├── ingredients.csv
-│   ├── recipes.json             # the seed recipes from your message
-│   └── seed.ts
+│   ├── recipes.json             # original WhatsApp dump, English-translated
+│   └── prices.json              # Lidl Prague pack sizes + prices
+├── scripts/                     # one-off node scripts (seed, backfills)
 ├── src/
 │   ├── app/                     # Next.js App Router
-│   │   ├── (marketing)/page.tsx
-│   │   ├── (app)/
-│   │   │   ├── recipes/
-│   │   │   ├── ingredients/
-│   │   │   ├── plan/
-│   │   │   ├── shopping/
-│   │   │   ├── receipts/
-│   │   │   └── settings/
-│   │   └── api/
-│   │       ├── recipes/route.ts
-│   │       ├── ingredients/route.ts
-│   │       ├── plans/route.ts
-│   │       ├── shopping/route.ts
-│   │       ├── receipts/route.ts        # POST image, returns parsed JSON
-│   │       └── prices/route.ts
-│   ├── components/              # shadcn/ui + custom
-│   ├── lib/
-│   │   ├── db/
-│   │   │   ├── client.ts        # Drizzle + Supabase client (server)
-│   │   │   └── schema.ts        # Drizzle table definitions (source of truth)
-│   │   ├── env.ts               # @t3-oss/env-nextjs schema
-│   │   ├── auth.ts
-│   │   ├── ratelimit.ts         # Upstash Redis + ratelimit
-│   │   ├── llm/
-│   │   │   ├── gemini.ts        # vision call via Vercel AI SDK
-│   │   │   └── prompts.ts
-│   │   ├── nutrition.ts         # Mifflin-St Jeor, macro split
-│   │   ├── shopping.ts          # aggregation + package rounding
-│   │   └── units.ts             # g/ml/unit conversions
-│   ├── domain/                  # pure types & business rules
-│   │   ├── ingredient.ts
-│   │   ├── recipe.ts
-│   │   ├── plan.ts
-│   │   └── receipt.ts
-│   └── styles/
+│   │   ├── recipes/             # /recipes, /recipes/new, /recipes/[slug], /recipes/[slug]/edit
+│   │   ├── ingredients/         # /ingredients (+ new/edit)
+│   │   └── plan/                # /plan — the daily planner + auto-balance
+│   ├── components/ui/           # Button, Card, Input, Label, …
+│   └── lib/
+│       ├── db/                  # Drizzle schema + Supabase clients
+│       ├── env.ts               # @t3-oss/env-nextjs schema
+│       ├── nutrition.ts         # per-recipe macro engine
+│       ├── units.ts             # g/ml/unit conversions
+│       ├── cost.ts              # consumed vs shopping cost
+│       ├── portion.ts           # pack-driven serving optimiser (heroFactor)
+│       ├── plan-portion.ts      # plumbing between recipe rows + portion engine
+│       ├── macro-balance.ts     # 3-scalar P/C/F auto-balancer
+│       ├── recipe-overrides.ts  # per-goal cut/bulk quantity overrides
+│       ├── goals.ts             # kcal + macro targets per goal
+│       └── rda.ts               # micronutrient RDAs
 └── tests/
-    ├── unit/
-    ├── integration/
-    └── e2e/
+    ├── unit/                    # pure-function tests (run by default)
+    └── integration/             # live-DB or live-server tests (gated by SMOKE / env)
 ```
 
 ---
 
-## 2. Phased delivery plan
+## 2. Local development
 
-Each phase ends in a **deployable, demoable increment**.
+Prereqs: Node 22, **pnpm 9** (`corepack enable && corepack prepare pnpm@9 --activate`).
 
-### Phase 0 — Bootstrap (foundation only) — ✅ done
+```bash
+git clone https://github.com/albrp97/SmartMealPlanner.git
+cd SmartMealPlanner
+cp .env.example .env.local       # fill in NEXT_PUBLIC_SUPABASE_URL / ANON_KEY (+ SERVICE_ROLE_KEY to seed)
+pnpm install
+pnpm dev                         # http://localhost:3000 (Turbopack)
+```
 
-Goal: empty app deployable to Vercel, CI green, DB connected.
+### Behind a corporate proxy (Zscaler / TLS interception)
 
-- [x] Scaffold Next.js 16 + TS + Tailwind 4 + Turbopack via `create-next-app`, pnpm-only.
-- [x] Biome configured (`biome.json`) with `lint` / `format` / `ci:check` scripts.
-- [x] Core deps installed: `@tanstack/react-query`, `zod`, `@t3-oss/env-nextjs`, `lucide-react`.
-- [x] `src/lib/env.ts` validates env vars at boot via `@t3-oss/env-nextjs` + Zod.
-- [x] `src/lib/query-provider.tsx` wired into `RootLayout`.
-- [x] Vitest configured with `@/*` alias; first unit test (`tests/unit/phases.test.ts`).
-- [x] GitHub Actions CI: install → Biome → typecheck → test → build.
-- [x] `.env.example` with all keys validated by `lib/env.ts`.
-- [x] Connect repo to Vercel; live at https://smart-meal-planner-iota.vercel.app/
-- [x] Create Supabase project (done at the Phase 1 boundary).
-- [ ] Create Upstash Redis instance (deferred to Phase 4 boundary).
-- [ ] Init `shadcn/ui` (deferred until the first form ships in Phase 1).
-- [ ] Configure PWA with **Serwist**: manifest + icons + service worker (deferred to Phase 5).
-- [ ] Set up Husky + commitlint for Conventional Commits (optional polish).
+Every Node command needs the corporate CA bundle:
 
-> **Why some items are deferred:** they require external accounts or only become useful when their consumer feature ships. The bootstrap is "deployable" and "CI-green" without them.
+```bash
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+```
 
-### Phase 1 — Ingredient & recipe catalogue (read/write) — 🚧 in progress
+Common pattern in this repo:
 
-Goal: full CRUD on ingredients and recipes, seeded from the user's list.
+```bash
+NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt pnpm test
+NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt pnpm typecheck
+```
 
-- [x] Drizzle ORM schema in [`src/lib/db/schema.ts`](src/lib/db/schema.ts) — ingredient_categories, ingredients, recipe_categories, recipes, recipe_ingredients, stores, price_history.
-- [x] First migration generated → [`migrations/0000_tiny_masque.sql`](migrations/0000_tiny_masque.sql).
-- [x] Supabase clients: [`src/lib/db/client-server.ts`](src/lib/db/client-server.ts) (RSC + actions) and [`src/lib/db/client-browser.ts`](src/lib/db/client-browser.ts).
-- [x] Seed script in [`scripts/seed.ts`](scripts/seed.ts) — idempotent upsert of categories, ingredients, recipes, recipe_ingredients, price_history. Stubs missing ingredients with placeholder package data so foreign keys work before prices are loaded. Auto-loads `.env.local` and pins `NODE_EXTRA_CA_CERTS` so it works behind corp TLS interception.
-- [x] Seed data translated to English; units normalised to `g | ml | unit`.
-- [x] Migration applied in Supabase (one-time, manual via SQL Editor).
-- [x] Seed run successfully — **49 ingredients · 21 recipes · 89 recipe_ingredients · 24 price snapshots · 1 store**.
-- [x] Read-only `/ingredients` page (server component) reading from Supabase.
-- [x] **Add/edit ingredient form** — Server Action + Zod validation ([`src/lib/validators.ts`](src/lib/validators.ts)) wired with React 19 `useActionState`. Routes: `/ingredients/new`, `/ingredients/[id]/edit`. Native HTML elements for now; shadcn/ui swap is a cosmetic refactor for later.
-- [x] **Recipe pages** — `/recipes` lists recipes grouped by category; `/recipes/[slug]` shows ingredients with quantities and a **live cost preview** (total + per-serving) computed from current `package_price`.
-- [x] **Cost helper** ([`src/lib/cost.ts`](src/lib/cost.ts)) — proportional per-line cost (`needed / package_size × package_price`), no implicit unit conversion, flags lines with missing prices or mismatched units.
-- [x] Vitest tests for `slugify` + `computeRecipeCost` (13 tests passing).
-- [x] **Recipe create/edit form** with embedded ingredient editor (add/remove/edit rows). Pages: `/recipes/new`, `/recipes/[slug]/edit`. Server Action serialises rows via a hidden JSON field; updates do delete-then-insert on `recipe_ingredients` (simple, fine for personal scale).
-- [x] **shadcn-style UI primitives** ([`src/components/ui/`](src/components/ui/)) — hand-rolled `Button`, `Card`, `Input`, `Textarea`, `Select`, `Label`, `FieldError`, `FormField` + a `cn()` helper backed by `clsx` + `tailwind-merge`. We deliberately skip the shadcn CLI (Tailwind 4 + Next 16 friction) and own the small surface area in-repo. Ingredient form refactored to use them.
-- [x] **OpenFoodFacts nutrition lookup** ([`src/lib/nutrition-lookup.ts`](src/lib/nutrition-lookup.ts)) wired two ways:
-  - In the ingredient form: a *Lookup nutrition* button (Server Action) prefills kcal + macros + fibre from the typed name.
-  - As a one-shot script: `pnpm db:backfill-nutrition` updates every ingredient where `kcal_per_100g IS NULL` (42/49 matched on the seed set; the 7 misses are GymBeam supplements with no public OFF entry).
-  - Uses the new `search.openfoodfacts.org` endpoint (the legacy `/cgi/search.pl` is currently 503-ing); falls back through `energy-kcal_100g` → `energy-kj_100g ÷ 4.184`; scores hits by macro completeness so brand junk doesn't beat plain ingredients.
+Direct Postgres on port 5432 is also blocked by Zscaler (resolves to IPv6
+only) — see §3 for the migration workflow we use instead.
 
-#### Migration workflow (corp network workaround)
+### Useful scripts
 
-Direct Postgres (`db.<ref>.supabase.co:5432`) is blocked by Zscaler, so we don't run `drizzle-kit push` locally. Instead:
+| Script | What it does |
+|---|---|
+| `pnpm dev` | Dev server with Turbopack HMR. |
+| `pnpm build` | Production build. |
+| `pnpm typecheck` | `tsc --noEmit`. |
+| `pnpm lint` | Biome lint + format check. |
+| `pnpm format` | Biome auto-format. |
+| `pnpm test` | Vitest run (unit + non-gated integration). |
+| `pnpm db:generate` | Regenerate SQL migration from `src/lib/db/schema.ts`. |
+| `pnpm db:seed` | Idempotent seed of ingredients/recipes/prices from `seed/*.json`. |
+| `pnpm db:backfill-units` | Fill in `g_per_unit` / `density_g_per_ml` for produce/dairy. |
+| `pnpm db:backfill-nutrition` | OpenFoodFacts lookup for missing kcal/macros. |
+| `pnpm db:backfill-micros` | OpenFoodFacts lookup for missing micros. |
 
-1. Edit `src/lib/db/schema.ts`.
+Smoke tests against the live dev server (with the dev server running):
+
+```bash
+SMOKE=1 NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
+  pnpm vitest run tests/integration/plan-macro-balance-smoke.test.ts \
+                  tests/integration/plan-autoscale-smoke.test.ts
+```
+
+---
+
+## 3. Database workflow
+
+### Migration workflow (corp network workaround)
+
+Direct Postgres is blocked, so we don't run `drizzle-kit push` locally.
+Instead:
+
+1. Edit [`src/lib/db/schema.ts`](src/lib/db/schema.ts).
 2. `pnpm db:generate` → produces a new SQL file in `migrations/`.
 3. Open Supabase Dashboard → **SQL Editor** → paste the SQL → **Run**.
-4. Commit the generated SQL so production / other devs see the same history.
+4. Commit the generated SQL so the next dev / production sees the same
+   history.
 
-Once Phase 5 brings Vercel into the loop with `DATABASE_URL` in env, we can also run `drizzle-kit migrate` from a CI workflow as a backup.
+### Manual data edits via service role
 
-#### Seed format (English, post-translation)
+For one-off DB patches (renaming an ingredient, fixing a recipe quantity,
+adding a price) write a throwaway Node script that uses the service-role
+key:
 
-```json
-{
-  "id": "indian_curry",
-  "name": "Indian curry",
-  "category_id": "curry",
-  "meal_type": "single_meal",
-  "servings_estimated": 1,
-  "ingredients": [
-    { "name": "rice",         "quantity": 80,  "unit": "g" },
-    { "name": "chicken",      "quantity": 100, "unit": "g" },
-    { "name": "tomato sauce", "quantity": 1,   "unit": "unit" },
-    { "name": "yogurt",       "quantity": 1,   "unit": "unit" },
-    { "name": "carrot",       "quantity": 1,   "unit": "unit" }
-  ]
-}
+```js
+// _patch.mjs (gitignored — delete after running)
+import { createClient } from '@supabase/supabase-js';
+const s = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+const { data: r } = await s.from('recipes').select('id').eq('slug', 'japanese_curry').single();
+const { data: ing } = await s.from('ingredients').select('id').eq('slug', 'chicken').single();
+await s.from('recipe_ingredients')
+  .update({ quantity: 1000, unit: 'g' })
+  .eq('recipe_id', r.id).eq('ingredient_id', ing.id);
 ```
 
-> **Hard rule:** `unit` must be one of `g | ml | unit` — no `lata`, `cucharadita`, `bote`, etc. The seed script does *not* convert; ambiguous quantities should be expressed in grams or millilitres with the original wording in `note`.
+Run with: `set -a && source .env.local && set +a && node ./_patch.mjs`.
+Always include a verification `select` at the end. Delete the script
+afterwards (or move under `scripts/` only if it's reusable).
 
-### Phase 2 — Costing, macros & micronutrients engine — ✅ done
+The `recipe_ingredients` table doesn't have anon UPDATE RLS — patch
+scripts must use the service-role client. For inserts on
+`recipe_ingredient_overrides` either client works.
 
-Goal: every recipe shows €/recipe, €/plate, kcal/plate, macros/plate **and** micronutrients/plate.
+### Why we have `migrations/` *and* `_patch.mjs`
 
-> **Quantity convention (hard rule).** Quantities in `recipe_ingredients`
-> are for the **whole cook** (the batch), not per plate. The pizza recipe
-> with 4 servings stores the dough/topping for the whole pizza; per-plate
-> values are computed by dividing by `recipes.servings`. Supplements are
-> the only exception — for `is_supplement = true`, `quantity` is the number
-> of servings consumed (1 unit = 1 scoop = 1 serving).
+- **`migrations/`** — schema changes (new tables, new columns, RLS rules).
+  Replayable, version-controlled, applied to every environment.
+- **`_patch.mjs`** — data fixes for **this** database (a recipe's
+  quantities, a price update). Equivalent to manually editing rows in the
+  Supabase UI; not replayable, not committed.
 
-- [x] [`src/lib/units.ts`](src/lib/units.ts): `toGrams(quantity, unit, ingredient)` with rules — `g` identity, `ml × density_g_per_ml` (fallback 1.0, flagged), `unit × g_per_unit` (null with `missing_g_per_unit` reason if absent).
-- [x] Schema: nullable `g_per_unit` and `density_g_per_ml` columns on `ingredients` ([`migrations/0001_unit_conversion.sql`](migrations/0001_unit_conversion.sql) — apply manually in Supabase SQL Editor).
-- [x] [`src/lib/nutrition.ts`](src/lib/nutrition.ts): `computeRecipeNutrition(lines, servings)` returns `{ total, perServing, lines, missing }` with rounded macros. Supplements treated per-serving; whole foods scaled by `grams / 100`.
-- [x] Vitest: 5 unit tests + 6 nutrition tests covering g/ml/unit conversion, supplements, missing data, zero servings.
-- [x] Recipe detail page badge: kcal/serving + protein/carbs/fat/fibre + batch total, with a "partial" warning when any ingredient is missing data.
-- [x] Recipe list page: kcal/serving column with a `*` partial-data marker.
-- [x] Backfill `g_per_unit` + `density_g_per_ml` for the produce/dairy/canned ingredients via [`scripts/backfill-units.ts`](scripts/backfill-units.ts) (`pnpm db:backfill-units`). 28/49 covered; the rest are already-in-g ingredients (rice, pasta, chicken…) or supplements where `is_supplement=true` bypasses conversion.
-- [x] Ingredient form: `g_per_unit` and `density_g_per_ml` editable in a new "Unit conversion" card.
-- [x] Cost: `mode = "shopping"` (round up to whole packages) added to [`src/lib/cost.ts`](src/lib/cost.ts) alongside the default `"consumed"` mode. Recipe page shows both the proportional total and the round-up total. Tested with 3 new shopping-mode cases (rounding 1.2→2, exact-match equivalence, single partial bag).
-- [x] Micros: [`lookupNutrition`](src/lib/nutrition-lookup.ts) now extracts `sodium_mg / calcium_mg / iron_mg / vitamin_c_mg` (g→mg) into a `micros` bag. The nutrition engine sums them as a sparse JSON record (`micros_per_100g` JSONB column already existed), the ingredient form persists them via a hidden field, and the recipe page renders RDA bars per serving with EU NRV references in [`src/lib/rda.ts`](src/lib/rda.ts). Backfill: `pnpm db:backfill-micros` filled 41/49 ingredients (8 skipped: GymBeam supplements + a couple of OFF entries with empty nutriments).
-
-### Phase 3 — Meal planner & shopping list — 🚧 in progress
-
-Goal: plan a week → generate a real shopping list.
-
-- [x] **Schema** ([`migrations/0004_meal_plan.sql`](migrations/0004_meal_plan.sql) —
-  apply manually in Supabase SQL Editor): `meal_plan_entries(date, slot,
-  recipe_id, servings)` with a public-read RLS policy for the personal-use
-  phase. Drizzle table mirror in [`src/lib/db/schema.ts`](src/lib/db/schema.ts).
-- [x] **`/plan`** — Mon–Sun grid for the current ISO week (`?week=YYYY-MM-DD`
-  to override). Each day has three slots (breakfast/lunch/dinner) with an
-  inline picker (recipe + servings) backed by Server Actions in
-  [`src/app/plan/actions.ts`](src/app/plan/actions.ts). A 'seed breakfasts'
-  button pins `breakfast_daily` to every empty breakfast slot for the week
-  (idempotent). Per-day macro footer compares actual kcal/protein vs the
-  selected goal target (Maintain / Cut / Bulk pills, same TARGETS as the
-  recipe page). Helpers (date math, ISO week, shopping aggregation) live in
-  [`src/lib/plan.ts`](src/lib/plan.ts).
-- [x] **`/shopping`** — reads the meal plan for the current week, scales each
-  recipe line by `(planned_servings / recipe.servings)`, aggregates by
-  ingredient, rounds up to whole packages and totals 'consumed' vs
-  'shopping' cost. Each row carries the `def`/`real` price-source badge and
-  the page header surfaces 'X% of cost still on default estimates' so the
-  user knows how much of the bill is still uncertain. Vitest covers the ISO
-  week math + the aggregator (7 new cases, 35/35 total).
-- [ ] Drag/drop or tap-to-add recipes to slots; choose servings. *(MVP
-  uses native `<select>` + numeric input; drag/drop is post-MVP.)*
-- [ ] Daily **micronutrient** roll-up + deficiency / excess flags.
-- [ ] Subtract pantry stock once Phase 6 lands.
-- [ ] Export shopping list as text / share to WhatsApp/Notes.
-
-### Phase 4 — Receipt OCR (LLM vision)
-
-Goal: photo of a ticket → updated price catalogue.
-
-- [ ] `/receipts/new` — camera capture or file upload.
-- [ ] `POST /api/receipts`:
-  1. Upload image to Supabase Storage.
-  2. Call Gemini 2.0 Flash with this **strict** JSON schema:
-     ```ts
-     {
-       store: string,
-       city: string | null,
-       date: string,                  // ISO
-       currency: "EUR",
-       items: Array<{
-         raw_text: string,
-         normalized_name: string,     // lowercased, no brand
-         quantity: number,
-         unit: "g"|"ml"|"unit"|"kg"|"l",
-         total_price: number,
-         unit_price: number
-       }>
-     }
-     ```
-  3. Fuzzy-match `normalized_name` to `ingredients.name` (use `pg_trgm` similarity ≥ 0.6, otherwise prompt user).
-  4. Insert into `price_history`; update `ingredients.default_price` only if newer than current default.
-- [ ] Confirmation UI: show diff (old → new), let user approve/reject per row.
-- [ ] Cache prompt and few-shot examples in `lib/llm/prompts.ts`.
-
-### Phase 5 — Auth & multi-device sync
-
-- [ ] Supabase magic-link login.
-- [ ] Row-level security on every table (`user_id = auth.uid()`).
-- [ ] Test on phone via installed PWA.
-
-### Phase 6 — Pantry / stock (optional, recommended)
-
-- [ ] `pantry_items` table (`ingredient_id`, `qty`, `unit`, `expires_at`).
-- [ ] On shopping-list generation, subtract pantry quantities first.
-- [ ] After shopping, "Mark as bought" pushes items into pantry.
-- [ ] After cooking a planned meal, decrement pantry.
-
-### Phase 7 — Smart suggestions
-
-- [ ] Suggest a weekly plan that hits macro **and micronutrient** targets and minimises € by reusing perishable ingredients.
-- [ ] Use a simple LP / greedy solver in `lib/planner.ts`; LLM only for natural-language tweaks ("more protein this week").
-
-### Phase 8 — Polish
-
-- [ ] Empty states, skeletons, optimistic updates.
-- [ ] Dark mode.
-- [ ] i18n (ES + EN); user’s recipes are in Spanish, UI English by default.
-- [ ] Accessibility pass (axe).
+If a data fix turns out to be reusable (e.g. a yearly price refresh), move
+it to `scripts/` and add an entry under [§2 useful scripts](#useful-scripts).
 
 ---
 
-## 3. Local development
+## 4. Recipe & ingredient authoring
 
-Prereqs: Node 20+, **pnpm 9+** (`corepack enable && corepack prepare pnpm@9 --activate`). Supabase CLI and a Gemini API key are only needed from Phase 1 / Phase 4 respectively.
+This section is the operating manual for **manually** keeping the catalogue
+healthy. The receipt-OCR + LLM ingestion plan was scrapped — every change
+goes through one of the paths below.
 
-```bash
-# 1. install
-pnpm install
+### 4.1 Adding or editing an ingredient
 
-# 2. run dev server (Turbopack)
-pnpm dev
+UI: `/ingredients/new` or `/ingredients/[id]/edit`. Required fields:
 
-# Phase 1+ (not yet wired):
-# supabase start            # local Postgres + storage stack
-# pnpm db:migrate           # drizzle-kit push / migrate
-# pnpm db:seed              # tsx scripts/seed.ts
-```
+| Field | Notes |
+|---|---|
+| `slug` | snake_case, English. Used in code and joins. Don't change once set. |
+| `name` | Free-form. Matches what you'd write on a recipe card. |
+| `category_id` | One of the built-in categories. |
+| `package_size` + `package_unit` | What one whole pack is. Drives the cost engine. |
+| `package_price` + `currency` | Default CZK. Update by hand from your last shopping ticket. |
+| `kcal_per_100g` + `protein/carbs/fat/fiber_per_100g` | Per 100 g/ml. Use the **Lookup nutrition** button to autofill from OpenFoodFacts. |
+| `g_per_unit` | Required for ingredients sold by `unit`. Average weight of one piece (avocado ≈ 200 g, onion ≈ 150 g, tortilla wrap ≈ 50 g). |
+| `density_g_per_ml` | Required for ingredients sold/measured in `ml` (cream 1.01, milk 1.03, oil 0.915). |
+| `divisible` | **True** if you can portion mid-week without spoilage (raw meat, rice, pasta, oils, milk in cartons). **False** for anything that goes off once opened or that physically can't be split (onions, eggs, cheese bag, beans tin, peppers, stock cubes, tortilla pack). |
+| `is_supplement` | True only for GymBeam SKUs measured per-scoop. Bypasses g-conversion. |
+| `micros_per_100g` (JSON) | Sparse — only the micros OpenFoodFacts gave us. Edit by hand if you have better data. |
 
-### Behind a corporate proxy (e.g. Zscaler / Artifactory)
+**Why divisibility matters:** it gates two things in the planner.
+1. The **shopping list** rounds non-divisibles up to whole packs.
+2. The **portion engine** rounds non-divisible side lines that are measured
+   in `unit` to integer counts (you can't cook with 0.33 of an onion or
+   4.2 tortillas).
 
-If `pnpm install` fails with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` you are behind a TLS-intercepting proxy. Point pnpm at the corporate registry instead:
+### 4.2 Adding or editing a recipe
 
-```bash
-pnpm config set registry <internal-registry>
-# (auth token already lives in ~/.npmrc on managed laptops)
-```
+UI: `/recipes/new` or `/recipes/[slug]/edit`. The form has an embedded
+ingredient editor — add/remove rows, set `quantity` + `unit` + `role`.
 
-`.env.local` keys (all validated at build time by [`src/lib/env.ts`](src/lib/env.ts) — add a key there *before* adding it to `.env.local`):
+**Quantity convention (hard rule).** Quantities in `recipe_ingredients`
+are for the **whole cook** (the batch), not per plate. A 4-serving curry
+stores 1000 g of chicken once, not 250 g per serving. Per-serving values
+are computed at render time by dividing by `recipes.servings`.
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-DATABASE_URL=                       # direct Postgres URL for Drizzle (Supabase pooled)
-GOOGLE_GENERATIVE_AI_API_KEY=       # Gemini, read by @ai-sdk/google
-OPENAI_API_KEY=                     # optional fallback, read by @ai-sdk/openai
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-SENTRY_DSN=                         # optional
-NEXT_PUBLIC_POSTHOG_KEY=            # optional
-```
+**Roles.** Every line gets a `role`:
 
-For Phase 0 / development you can leave them all empty — every key is `.optional()` in `lib/env.ts`. Set `SKIP_ENV_VALIDATION=1` to bypass validation entirely (used by CI builds).
+- `hero` — the protein anchor. Drives sizing and the hero-packs counter on
+  `/plan`. Exactly one per recipe.
+- `side` — scales linearly with the hero (rice with the curry, pasta with
+  the meat sauce). The auto-balancer is allowed to scale these.
+- `fixed` — stays at recipe default regardless of batch (1 onion, 1 stock
+  cube, 1 cheese bag, 6 tortillas). Non-divisible side ingredients
+  measured in `unit` are auto-rounded to whole numbers at cook time.
+
+**Sensible recipe shape (lessons learned):**
+
+- Pick a **batch size that lines up with one full hero pack.** Chicken
+  comes in 1 kg packs, so a chicken curry should default to 4 servings of
+  250 g (or one full pack). Don't make a "100 g chicken / 1 serving"
+  recipe — when the user picks 1 hero pack you'll either cook 10 servings
+  of curry (absurd) or carry around fractional packs.
+- Sides scale **with** the hero. If you 4× the chicken, the rice should
+  4× too. Express side amounts in grams per default-batch (e.g.
+  "320 g rice for 4 servings", not "80 g per serving").
+- Fixed lines are absolute. "1 onion" stays 1 onion whether you cook 4 or
+  16 servings. If the recipe really needs more onion at scale, change the
+  role to `side` and express the per-batch amount.
+- **Don't put fractional non-divisible quantities** like `0.5 onion` or
+  `0.3333 bell_pepper` on a fixed line. Either round up to 1 in the
+  recipe, or change the role to `side` so it scales.
+
+After saving a recipe, smoke-test it: open `/plan`, plan one cook of the
+recipe, verify the per-serving macros and the shopping list look sane.
+
+### 4.3 Per-goal cut/bulk overrides
+
+UI: `/recipes/[slug]` → **Cut · Maintain · Bulk** editor. Rewrites a single
+ingredient's quantity for a specific goal. Three semantics:
+
+- Empty input on cut/bulk → `DELETE` the override (revert to maintain).
+- `0` → keep the override and *drop the line* at that goal (no cheese on
+  cut, no avocado on cut).
+- Any other number → use that quantity at that goal.
+
+Maintain edits write back to the baseline `recipe_ingredients.quantity`.
+
+> **Phase 3.8 caveat.** The macro auto-balancer on `/plan` currently
+> ignores `recipe_ingredient_overrides`. The override editor is wired and
+> persists to the DB, but the planner's macro pipeline rebuilds quantities
+> from the baseline + the per-class scalars. If you need cut to behave
+> differently (e.g. less olive oil at breakfast), edit the maintain
+> baseline or add the missing wiring (see §7.2).
+
+### 4.4 Updating prices manually
+
+When you do a real shop, open `/ingredients` and click each ingredient
+that's now cheaper / more expensive. Update `package_price`. The page
+shows a `def`/`real` badge so you can see at a glance which prices are
+still seed defaults.
+
+For bulk price updates, write a `_patch.mjs` (see §3).
+
+### 4.5 Daily breakfast
+
+`breakfast_daily` is a special recipe — it's pinned ×7 days and treated as
+a constant per-day macro contribution by the auto-balancer. Its lines are
+NEVER scaled. Currently includes:
+
+- 40 g oatmeal · 30 g cashews · 30 g cranberries · 30 g raisins
+- 130 g yogurt 3.9 % · 30 ml milk
+- 30 g whey protein · 5 g creatine
+- **30 ml olive oil (≈ 2 tbsp)** — covers the daily oil intake
+- multivitamin · omega-3 · D3+K2 · magnesium
+
+The 2 tbsp olive oil contributes ~27 g fat / 247 kcal — significant. On
+cut goal, fixed breakfast macros use up over half of the 75 g fat target,
+which is why the smoke test allows ±25 % drift on fat (vs ±5 % for the
+other macros). If you want cut breakfast to be leaner, either edit the
+maintain baseline directly or implement §7.2 (rewire overrides into the
+balancer).
 
 ---
 
-## 4. Testing strategy
+## 5. Current state by module
 
-| Layer | Tool | Scope |
-|-------|------|-------|
-| Unit | **Vitest** | Pure functions: `units.ts`, `nutrition.ts`, `cost.ts`, `shopping.ts`. Target ≥ 90 % coverage on `lib/`. |
-| Component | **Vitest + React Testing Library** | Recipe form, shopping list table. |
-| Integration | **Vitest** against a local Supabase | API routes hit a real Postgres; reset between tests. |
-| Contract | **Zod schemas + golden JSON** | LLM receipt parser must match schema; replay recorded responses. |
-| E2E | **Playwright** | Critical flows: add recipe → plan week → generate list → upload receipt → price updated. Run on mobile viewport (Pixel 7). |
-| Visual | **Playwright screenshots** | Catch layout regressions on mobile. |
-| Manual | Real phone | Once per phase, install PWA and use it for a real shopping trip. |
+### 5.1 `/recipes` and `/recipes/[slug]`
 
-**LLM testing rule:** never call the live model in CI. Record fixtures with `npm run llm:record`, replay them in tests.
+- Recipes list grouped by category. Per row: kcal/serving, batch total,
+  cost band (consumed → shopping).
+- Detail page shows ingredients with quantities, the cost block, the macro
+  block (kcal · P · C · F · fibre per serving), the micronutrient RDA
+  bars (EU NRV from `src/lib/rda.ts`), and the **goal quantities editor**
+  (cut · maintain · bulk per ingredient).
 
-CI gates (GitHub Actions):
+### 5.2 `/ingredients`
 
-1. `biome ci` (lint + format check, single Rust binary)
-2. `typecheck` (`tsc --noEmit`)
-3. `test:unit`
-4. `test:integration` (spins up Supabase service container)
-5. `build`
-6. `test:e2e` (only on PR to `main`)
+- Catalogue table with search. Click through to edit. Shows price
+  defaults vs real-from-ticket prices via the `def`/`real` badge.
 
-All jobs use `pnpm/action-setup` + actions/cache for the pnpm store; cold install is < 30 s.
+### 5.3 `/plan` — the meal planner
+
+Single page, no calendar. Renders three sections:
+
+1. **Goal pills** (Maintain · Cut · Bulk) — plain `<a>` links. Clicking
+   triggers a hard nav so the RSC payload is rebuilt.
+2. **Lunch** + **Dinner** rows. Each row = a recipe pick + a hero-packs
+   counter. Auto-saves via Server Actions in
+   [`src/app/plan/actions.ts`](src/app/plan/actions.ts).
+3. **Shopping list** (right column on desktop, below on mobile).
+   Aggregated across all rows; rounds non-divisibles up to whole packs.
+
+The **macro auto-balancer** (Phase 3.8) runs on every render:
+- Pass 1: build recipes at scales=1, measure per-class daily contributions
+  (P / C / F).
+- Solve a bounded LSQ for three scalars (sP, sC, sF) clamped to [0, 4]
+  using coordinate descent.
+- Pass 2: rebuild recipes with the scalars applied to side lines, and
+  pass `heroFactor = clamp(scales[heroClass], 0.5, 1.75)` to
+  `scalePortion` so the hero quantity is tuned without changing servings.
+
+The header shows the chosen scalars: `auto-balance · protein ×1.40 · carbs
+×0.68 · fat ×0.72 [· clamped]`.
+
+### 5.4 Auto-balancer math (`src/lib/macro-balance.ts`)
+
+- `classifyIngredient(ing)` → `"P" | "C" | "F" | null`. Picks the macro
+  with the highest kcal contribution per gram (P×4, C×4, F×9). Returns
+  null for nutrition-less items (salt, water, missing data).
+- `computeMacroScales({breakfastDaily, entries, target})` → returns
+  `{scales: {P, C, F}, clamped, fallback}`.
+- Objective: minimise `Σ wᵢ (target_i - predicted_i)²` where `i ∈ {kcal, P,
+  C, F}`. Weights tuned so a 100 kcal miss costs roughly the same as an
+  8 g protein miss (`WEIGHTS = {kcal: 1/100, protein: 1/8, carbs: 1/30, fat: 1/12}`).
+- Solver: **bounded coordinate descent**. For each class, find the optimal
+  scalar holding the others fixed (closed-form for a single variable),
+  clamp to `[0, 4]`. Always converges (convex quadratic on a box).
+
+### 5.5 Portion engine (`src/lib/portion.ts`)
+
+- `scalePortion(recipe, heroQuantity, heroFactor=1)` →
+  `{servings, heroLineIndex, scaled, feasible, reasons}`.
+- `heroQuantity` is in the hero line's recipe unit (g for divisible meat,
+  unit for non-divisible heroes).
+- Servings = `heroQuantity / heroPerServing`, rounded for non-divisible
+  heroes.
+- `heroFactor` (default 1) multiplies the hero's quantity AFTER servings
+  are derived. Used by the macro balancer to ask for "more chicken per
+  cook" without making the cook last more days.
+- Side lines scale linearly. Fixed lines stay at recipe default. Both are
+  rounded to whole numbers when the ingredient is non-divisible and
+  measured in `unit`.
 
 ---
 
-## 5. Deployment
+## 6. Testing
+
+| Layer | Tool | Notes |
+|---|---|---|
+| Unit | Vitest | Pure functions in `src/lib/*`. Always run in CI. |
+| Integration (live DB) | Vitest + Supabase service-role | Gated by `URL_` + `SERVICE` env vars; skipped without them. |
+| Smoke (live dev server) | Vitest | Gated by `SMOKE=1`. Requires `pnpm dev` running. |
+| E2E | — | Playwright is configured but no specs yet. |
+
+Current count (2026-04-25): **74 unit/integration passing, 7 skipped**.
+
+CI gates (GitHub Actions, see `.github/workflows/`):
+1. `biome ci` (lint + format)
+2. `tsc --noEmit`
+3. `pnpm test` (unit + non-gated integration)
+4. `pnpm build`
+
+The macro-balance smoke test currently uses ±5 % tolerance for kcal /
+protein / carbs and ±25 % for fat. The fat tolerance is wider because
+breakfast contributes ~40 g of fixed fat (2 tbsp olive oil + cashews +
+yogurt) which alone uses up over half of the cut goal's 75 g target. The
+auto-balancer can drop side fat to zero but can't pull breakfast fat
+down — that requires a per-goal breakfast override (see §7.2).
+
+---
+
+## 7. Roadmap & known limitations
+
+### 7.1 Plan page is overcrowded — refactor in progress
+
+The `/plan` page is now ~700 lines and does five things: goal pills,
+lunch/dinner pickers, hero-pack counters, macro card, shopping list. Goal:
+break it into smaller components and add a recommendation panel. Sketch:
+
+```
+/plan
+├── <GoalPills />                         (existing)
+├── <DayMacroCard />                      (existing — header strip)
+├── <CookSection slot="lunch" />          (lunch picker + hero packs + scaled lines)
+├── <CookSection slot="dinner" />         (same)
+├── <RecommendationPanel />               (NEW — see §7.3)
+└── <ShoppingList />                      (collapsible on mobile)
+```
+
+Move each component into its own file under `src/app/plan/_components/`.
+The page becomes a server component that fetches once and threads data
+into client subtrees. Shopping list becomes collapsible (`<details>`) on
+mobile so the meal pickers stay above the fold.
+
+### 7.2 Rewire overrides into the balancer
+
+Phase 3.6's `recipe_ingredient_overrides` table is wired in the recipe
+editor but the macro pipeline ignores it. Fix: in
+[`src/app/plan/page.tsx`](src/app/plan/page.tsx)'s `buildRecipes(scales)`,
+apply `applyGoalOverrides(li, goal, overrideMap)` (already exported from
+[`src/lib/recipe-overrides.ts`](src/lib/recipe-overrides.ts)) **before**
+the per-class scalar multiplication. This makes "less oil at breakfast on
+cut" possible without touching the maintain baseline.
+
+### 7.3 Recommendation system (design)
+
+Goal: keep the planner small but offer "what should I cook next?"
+suggestions inline.
+
+**UX sketch.** A `<RecommendationPanel />` below the dinner row, structured
+as three columns:
+
+| Last week | Currently planned | Suggested next |
+|---|---|---|
+| Burrito | Burrito | Pasta with meat |
+| Japanese curry | Japanese curry | Indian curry |
+|  |  | Chicken risotto |
+
+- **Last week** — what was planned 7 days ago (read from
+  `meal_plan_entries` via `plan_date < today() - 6`). Greyed out, not
+  clickable.
+- **Currently planned** — duplicates lunch/dinner so the panel is a
+  one-glance summary.
+- **Suggested next** — 3–5 candidate recipes ranked by the scoring
+  function below. Click → swap into the lunch or dinner slot.
+
+**Scoring function** (pure, in `src/lib/recommend.ts`, fully unit-tested):
+
+```
+score(candidate) =
+    + wMacroFit  · (1 − |target_macro_delta| / target)        // closer to goal = higher
+    + wVariety   · daysSinceLastCooked(candidate)              // not eaten recently
+    − wRedundant · sameCategory(candidate, lastWeek + planned) // skip "curry + curry"
+    − wOverlap   · sharedDominantIngredients(candidate, planned) // skip "chicken+chicken+chicken"
+    + wThrift    · ingredientReuseWithCurrentPlan(candidate)   // share an onion → cheaper
+```
+
+Inputs: `meal_plan_entries` history, the recipes catalogue (with
+`category_id` + the dominant ingredient = the hero), and the current goal
+target. No LLM needed; it's a weighted sum over deterministic features.
+
+**Persistence.** No new tables. Recommendations are derived on the fly
+from `meal_plan_entries` + `recipes`. The "last week" column reads the
+single previous `plan_date` row per slot; if multiple plan dates exist,
+take the most recent one before today.
+
+**Implementation order.**
+1. `src/lib/recommend.ts` — pure function + unit tests.
+2. Read past plan entries in `/plan`'s server component.
+3. New `<RecommendationPanel />` client component with click handlers
+   that call the existing slot-update server action.
+4. Decongest the page (§7.1) at the same time so the panel fits.
+
+### 7.4 Other things on the list
+
+- **Daily micronutrient roll-up** on `/plan` (already on per-recipe
+  page).
+- **Pantry stock** (`pantry_items` table, subtract from shopping list).
+- **Export shopping list** to text / share to WhatsApp.
+- **Auth** (Supabase magic-link) — currently single-user, RLS is open.
+- **PWA** — manifest + service worker via Serwist.
+
+### 7.5 Things we explicitly *won't* build
+
+- **Receipt OCR via LLM.** Originally Phase 4. Removed because: (a) prices
+  change rarely enough to update by hand once a month; (b) the LLM-error
+  surface (wrong unit, wrong store, hallucinated price) was high enough
+  to need a confirmation UI anyway, which is more clicks than just typing
+  the new price; (c) we eliminated a runtime dependency + API key + rate
+  limit + quota concern.
+- **LLM duplicate detection on recipe create.** Same reasoning. The
+  catalogue is small (~50 ingredients, ~20 recipes); a `slug` uniqueness
+  check is enough.
+- **LLM-driven recipe authoring.** Recipes go in by hand, in pair-sessions
+  with the assistant in this very chat, following the conventions in §4.
+
+---
+
+## 8. Operational notes
 
 ### Production: Vercel (free Hobby plan)
 
-1. Push to GitHub.
-2. Import repo in Vercel → framework auto-detected as Next.js.
-3. Add env vars (same as `.env.local` but production keys).
-4. Vercel auto-deploys on every push to `main`.
-5. Preview deployments on every PR.
+Auto-deploy on push to `main`. Preview deployments on every PR. Env vars
+set in the Vercel dashboard.
+
+Live: https://smart-meal-planner-iota.vercel.app/
 
 ### Database: Supabase (free)
 
-- Migrations applied via GitHub Action `db-migrate.yml` on push to `main`, using `supabase db push`.
-- Daily backups: Supabase free tier keeps 7 days of point-in-time recovery; additionally a weekly `pg_dump` artifact uploaded to GitHub Releases.
+Migrations applied manually via SQL Editor (see §3). No CI auto-migrate
+yet — add one once the schema stabilises.
 
-### Mobile install
-
-- Open the Vercel URL on the phone → "Add to Home Screen" → installs as PWA.
-- Camera access works via the standard `<input type="file" accept="image/*" capture="environment">`.
+Daily backups: Supabase free tier keeps 7 days PITR.
 
 ### Cost ceiling
 
 | Service | Free tier | Expected usage |
-|---------|-----------|----------------|
+|---|---|---|
 | Vercel | 100 GB-hr / 100 GB bandwidth | well under |
 | Supabase | 500 MB DB, 1 GB storage | < 50 MB total |
-| Gemini 2.0 Flash | 1 500 req/day | < 10/day (only on receipts) |
 
-If Gemini free tier ever lapses → switch to OpenAI `gpt-4o-mini` (~ €0.0001 per receipt).
-
----
-
-## 6. Security & privacy
-
-- All data scoped to `auth.uid()` via Supabase RLS.
-- Receipt images stored in a **private** bucket; signed URLs only.
-- No PII sent to LLMs beyond the receipt image itself.
-- Rate-limit `/api/receipts` (Vercel KV or Upstash free tier) to prevent abuse.
-- Secrets only via Vercel env vars + GitHub Encrypted Secrets.
-- Dependabot enabled; weekly `npm audit` in CI.
-
----
-
-## 7. Observability
-
-- **Vercel Analytics** for traffic and Web Vitals.
-- **Sentry** for runtime errors (frontend + API).
-- Structured logs in API routes via `pino` (JSON to Vercel log drain).
-- Custom metric: `receipt.parse.success_rate` — alert if < 80 % over 24 h.
-
----
-
-## 8. Future improvements (post-v1)
-
-- Barcode scanning to add ingredients faster.
-- Voice input ("add chicken in sauce to Tuesday").
-- **Smart N-day meal-plan recommender.** Generate a coherent plan for *N*
-  days that:
-  1. **Avoids redundancy** — no "curry for lunch + Japanese curry for
-     dinner", no "yakisoba + fried rice" the same day. Compare recipes by
-     category, cuisine tags, dominant ingredients, and a flavour-profile
-     embedding (sweet/spicy/umami/acidic). Penalise pairs above a similarity
-     threshold within the same day and within a 2-day window.
-  2. **Hits macro/calorie targets** per day (kcal, protein, carbs, fat) with
-     a tolerance band; treat the per-day macro deficit as part of the cost
-     function so the optimiser balances variety with the user's targets.
-  3. **Respects per-recipe span** — each recipe declares "I will eat this
-     for *y* days" (leftovers); the planner reuses the same cook session
-     across consecutive days to cut prep time.
-  4. **Optimises shopping cost** — sums ingredient quantities across the
-     plan, picks pack sizes from `price_history`, and prefers recipes that
-     share ingredients (one onion, one bag of rice covers three meals).
-  5. **Respects perishability** — schedule fresh chicken / fish / leafy
-     greens early in the week; cabbage, carrots, dry pasta, frozen items
-     can land later. Each ingredient gets a `shelf_life_days` (fridge /
-     pantry / freezer) so the planner doesn't ask you to cook day-7 salmon.
-  Implementation sketch: ILP / weighted-CSP over candidate recipes, with
-  the LLM only used to (a) tag flavour profiles when seeding new recipes
-  and (b) explain the resulting plan in natural language.
-- **LLM-assisted duplicate detection on create.** When the user submits a new
-  ingredient or recipe, run a similarity check (embedding + name/slug fuzzy
-  match, then an LLM judge) against the existing catalogue. If a likely
-  duplicate is found, surface it inline ("Did you mean **chicken thigh
-  fillets**? — kcal 161, £4.50/kg, used in 3 recipes") with two actions:
-  *Use existing* (cancels the create and links the user to the match) or
-  *Create anyway* (proceeds with the insert). Same flow for recipes, scoped
-  by category. Helps keep the catalogue clean as it grows.
-- Nutritionix / OpenFoodFacts / USDA FDC integration to autofill macros and micronutrients.
-- Auto-import GymBeam supplement nutrition facts via product-page scraping.
-- Multi-store price comparison ("cheapest store for this week’s list").
-- Telegram/WhatsApp bot for shopping reminders.
-- Export plan to Google Calendar.
-- Sharing plans with a partner / family (multi-user already supported by schema).
-- Native wrapper via Capacitor if PWA limitations bite.
+No LLM, no Redis, no Sentry — kept off for now.
 
 ---
 
@@ -453,21 +542,8 @@ If Gemini free tier ever lapses → switch to OpenAI `gpt-4o-mini` (~ €0.0001 
 A feature is "done" when **all** are true:
 
 1. Code merged to `main`.
-2. Unit + integration tests added; CI green.
-3. E2E flow updated if user-visible.
-4. Documentation updated (README and/or this guide).
-5. Deployed to production and manually verified on a real phone.
-6. No new Sentry errors in the first 24 h.
-
----
-
-## 10. Getting started checklist (Phase 0)
-
-- [ ] Create GitHub repo `SmartMealPlanner` (private at first).
-- [ ] Push these two docs.
-- [ ] Open issue per phase, link from this guide.
-- [ ] Run `npx create-next-app` and commit the bootstrap.
-- [ ] Wire Vercel + Supabase.
-- [ ] Tag `v0.0.1` once the empty app is live.
-
-Then proceed to Phase 1.
+2. Unit tests added for any new pure function in `src/lib/*`.
+3. If user-visible: opened on the live dev server and visually verified at
+   maintain · cut · bulk.
+4. Documentation updated (this guide and/or README).
+5. Deployed to production via Vercel and re-verified on a phone.

@@ -1,88 +1,58 @@
 "use server";
 
+/**
+ * Meal-planner server actions.
+ *
+ * The "plan" is a flat list of recipes the user intends to cook. Each entry
+ * has a slot (lunch / dinner) and a `batches` count — total servings cooked
+ * for that recipe = `recipe.servings * batches`. Breakfast is constant
+ * (`breakfast_daily` × 7) and never stored; it's added implicitly in the UI.
+ *
+ * The `meal_plan_entries.date` column is re-used as a sentinel
+ * (`PLAN_DATE`, see ./constants) so every row belongs to "the current plan"
+ * — no calendar UI involved.
+ */
 import { createClient } from "@/lib/db/client-server";
 import { revalidatePath } from "next/cache";
+import { PLAN_DATE } from "./constants";
 
-export interface PlanActionResult {
-	ok: boolean;
-	error?: string;
-}
-
-export async function addPlanEntry(
-	_prev: PlanActionResult,
-	formData: FormData,
-): Promise<PlanActionResult> {
-	const date = String(formData.get("date") ?? "");
-	const slot = String(formData.get("slot") ?? "");
-	const recipeId = String(formData.get("recipe_id") ?? "");
-	const servingsRaw = formData.get("servings");
-	const servings = servingsRaw ? Number(servingsRaw) : 1;
-
-	if (!date || !slot || !recipeId) {
-		return { ok: false, error: "missing fields" };
-	}
-	if (!["breakfast", "lunch", "dinner"].includes(slot)) {
-		return { ok: false, error: "invalid slot" };
-	}
-	if (!Number.isFinite(servings) || servings <= 0) {
-		return { ok: false, error: "servings must be > 0" };
-	}
-
+export async function addPlanEntry(slot: "lunch" | "dinner", recipeId: string): Promise<void> {
+	if (!recipeId) return;
+	if (slot !== "lunch" && slot !== "dinner") return;
 	const supabase = await createClient();
-	const { error } = await supabase.from("meal_plan_entries").insert({
-		date,
+	await supabase.from("meal_plan_entries").insert({
+		date: PLAN_DATE,
 		slot,
 		recipe_id: recipeId,
-		servings,
+		servings: 1,
 	});
-	if (error) return { ok: false, error: error.message };
 	revalidatePath("/plan");
-	revalidatePath("/shopping");
-	return { ok: true };
-}
-
-export async function deletePlanEntry(id: string): Promise<PlanActionResult> {
-	const supabase = await createClient();
-	const { error } = await supabase.from("meal_plan_entries").delete().eq("id", id);
-	if (error) return { ok: false, error: error.message };
-	revalidatePath("/plan");
-	revalidatePath("/shopping");
-	return { ok: true };
 }
 
 /**
- * Pre-fill the "breakfast" slot for every day in the given week with the
- * constant breakfast_daily recipe. Idempotent: skips dates that already
- * have a breakfast entry.
+ * Update the hero-pack count for a plan entry. We re-use the existing
+ * `meal_plan_entries.servings` integer column (no migration needed): in
+ * Phase 3.5 it now means "number of hero packages committed", and the page
+ * derives plate servings from it via `src/lib/portion.ts`.
  */
-export async function seedBreakfastsForWeek(weekDates: string[]): Promise<PlanActionResult> {
+export async function updatePacks(id: string, packs: number): Promise<void> {
+	if (!id) return;
+	const n = Math.max(1, Math.floor(Number(packs) || 1));
 	const supabase = await createClient();
-	const { data: breakfast } = await supabase
-		.from("recipes")
-		.select("id")
-		.eq("slug", "breakfast_daily")
-		.single();
-	if (!breakfast) return { ok: false, error: "breakfast_daily recipe not found" };
-
-	const { data: existing } = await supabase
-		.from("meal_plan_entries")
-		.select("date")
-		.in("date", weekDates)
-		.eq("slot", "breakfast");
-	const have = new Set((existing ?? []).map((e) => e.date));
-
-	const toInsert = weekDates
-		.filter((d) => !have.has(d))
-		.map((d) => ({
-			date: d,
-			slot: "breakfast" as const,
-			recipe_id: breakfast.id,
-			servings: 1,
-		}));
-	if (toInsert.length === 0) return { ok: true };
-	const { error } = await supabase.from("meal_plan_entries").insert(toInsert);
-	if (error) return { ok: false, error: error.message };
+	await supabase.from("meal_plan_entries").update({ servings: n }).eq("id", id);
 	revalidatePath("/plan");
-	revalidatePath("/shopping");
-	return { ok: true };
+}
+
+export async function updateRecipe(id: string, recipeId: string): Promise<void> {
+	if (!id || !recipeId) return;
+	const supabase = await createClient();
+	await supabase.from("meal_plan_entries").update({ recipe_id: recipeId }).eq("id", id);
+	revalidatePath("/plan");
+}
+
+export async function deletePlanEntry(id: string): Promise<void> {
+	if (!id) return;
+	const supabase = await createClient();
+	await supabase.from("meal_plan_entries").delete().eq("id", id);
+	revalidatePath("/plan");
 }
