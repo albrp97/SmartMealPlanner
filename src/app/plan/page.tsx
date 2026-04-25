@@ -10,6 +10,7 @@
  * Breakfast is constant (`breakfast_daily` × 7) and never stored.
  */
 import { ButtonLink } from "@/components/ui/button";
+import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
 import { type Goal, TARGETS, isGoal } from "@/lib/goals";
 import {
@@ -26,10 +27,12 @@ import {
 	toPortionRecipe,
 } from "@/lib/plan-portion";
 import { findHeroIndex, scalePortion } from "@/lib/portion";
+import { recommend } from "@/lib/recommend";
 import Link from "next/link";
 import { PLAN_DATE } from "./constants";
 import { AddPlanEntry, type PickerRecipe, PlanEntryRow } from "./controls";
 import { GoalPills } from "./goal-pills";
+import { type RecommendationCard, RecommendationPanel } from "./recommendation-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -425,6 +428,110 @@ export default async function PlanPage({
 			};
 		});
 
+	// --- Recommendations (Phase 3.9) ----------------------------------
+	// Build one candidate per non-breakfast recipe with: macros/serving,
+	// cost/serving (computeRecipeCost on the unscaled lines, ignoring
+	// unit-mismatched ones — they evaluate to 0 and just lose a small
+	// thrift bonus), category id, hero slug. Then ask `recommend()` for
+	// the top picks per slot, excluding what's already planned and
+	// penalising same-category / same-hero clashes against the OTHER
+	// slot. UX lives in <RecommendationPanel/>.
+	const recommendCandidates = recipes
+		.filter((r) => r.slug !== "breakfast_daily")
+		.map((r) => {
+			const ps = perServing.get(r.id);
+			const portion = portionByRecipe.get(r.id);
+			const heroIdx = portion ? findHeroIndex(portion) : -1;
+			const hero = portion && heroIdx >= 0 ? portion.lines[heroIdx] : null;
+			const costLines: CostLineInput[] = r.recipe_ingredients
+				.filter((li) => li.ingredients !== null)
+				.map((li) => ({
+					ingredient: {
+						package_price: li.ingredients?.package_price ?? null,
+						package_size: li.ingredients?.package_size ?? 0,
+						package_unit: li.ingredients?.package_unit ?? "g",
+						currency: li.ingredients?.currency ?? "CZK",
+					},
+					quantity: li.quantity,
+					unit: li.unit,
+				}));
+			const cost = computeRecipeCost(costLines, "CZK", "consumed");
+			const costPerServing = r.servings > 0 ? cost.total / r.servings : 0;
+			return {
+				id: r.id,
+				name: r.name,
+				categoryId: r.category_id,
+				heroSlug: hero?.ingredient.slug ?? null,
+				kcalPerServing: ps?.kcal ?? 0,
+				proteinPerServing: ps?.protein ?? 0,
+				costPerServing,
+				heroName: hero?.ingredient.name ?? null,
+			};
+		});
+
+	const lunchPlannedIds = lunchApplied.map((a) => a.recipe.id);
+	const dinnerPlannedIds = dinnerApplied.map((a) => a.recipe.id);
+	const allPlannedIds = [...lunchPlannedIds, ...dinnerPlannedIds];
+	const lunchCategories = lunchApplied
+		.map((a) => a.recipe.category_id)
+		.filter((c): c is string => !!c);
+	const dinnerCategories = dinnerApplied
+		.map((a) => a.recipe.category_id)
+		.filter((c): c is string => !!c);
+	const lunchHeroes = lunchApplied
+		.map((a) => recommendCandidates.find((c) => c.id === a.recipe.id)?.heroSlug ?? null)
+		.filter((s): s is string => !!s);
+	const dinnerHeroes = dinnerApplied
+		.map((a) => recommendCandidates.find((c) => c.id === a.recipe.id)?.heroSlug ?? null)
+		.filter((s): s is string => !!s);
+
+	function toCard(c: (typeof recommendCandidates)[number] & { heroName: string | null }) {
+		const scored = recommendCandidates.find((x) => x.id === c.id);
+		return {
+			id: c.id,
+			name: c.name,
+			categoryName: c.categoryId ?? "uncategorised",
+			heroName: c.heroName,
+			kcal: scored?.kcalPerServing ?? 0,
+			protein: scored?.proteinPerServing ?? 0,
+			costPerServing: scored?.costPerServing ?? 0,
+			reasons: [] as string[],
+		};
+	}
+
+	const lunchScored = recommend(
+		{
+			candidates: recommendCandidates,
+			excludeIds: allPlannedIds,
+			otherSlotCategoryIds: dinnerCategories,
+			otherSlotHeroSlugs: dinnerHeroes,
+			goal,
+		},
+		3,
+	);
+	const dinnerScored = recommend(
+		{
+			candidates: recommendCandidates,
+			excludeIds: allPlannedIds,
+			otherSlotCategoryIds: lunchCategories,
+			otherSlotHeroSlugs: lunchHeroes,
+			goal,
+		},
+		3,
+	);
+
+	const heroNameById = new Map(recommendCandidates.map((c) => [c.id, c.heroName]));
+	const lunchCards: RecommendationCard[] = lunchScored.map((s) => ({
+		...toCard({ ...s, heroName: heroNameById.get(s.id) ?? null }),
+		reasons: s.reasons,
+	}));
+	const dinnerCards: RecommendationCard[] = dinnerScored.map((s) => ({
+		...toCard({ ...s, heroName: heroNameById.get(s.id) ?? null }),
+		reasons: s.reasons,
+	}));
+	const lunchCurrentName = lunchApplied[0]?.recipe.name ?? null;
+	const dinnerCurrentName = dinnerApplied[0]?.recipe.name ?? null;
+
 	return (
 		<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10">
 			<header className="flex flex-wrap items-end justify-between gap-3">
@@ -520,6 +627,11 @@ export default async function PlanPage({
 						applied={dinnerApplied}
 						pickerRecipes={pickerRecipes}
 						slot="dinner"
+					/>
+
+					<RecommendationPanel
+						lunch={{ currentName: lunchCurrentName, cards: lunchCards }}
+						dinner={{ currentName: dinnerCurrentName, cards: dinnerCards }}
 					/>
 				</div>
 

@@ -324,14 +324,19 @@ balancer).
 
 ### 5.3 `/plan` — the meal planner
 
-Single page, no calendar. Renders three sections:
+Single page, no calendar. Renders four sections:
 
 1. **Goal pills** (Maintain · Cut · Bulk) — plain `<a>` links. Clicking
    triggers a hard nav so the RSC payload is rebuilt.
 2. **Lunch** + **Dinner** rows. Each row = a recipe pick + a hero-packs
    counter. Auto-saves via Server Actions in
    [`src/app/plan/actions.ts`](src/app/plan/actions.ts).
-3. **Shopping list** (right column on desktop, below on mobile).
+3. **Recommendation panel** (Phase 3.9) — two columns, one per slot,
+   each showing the top-3 candidate recipes ranked by
+   [`src/lib/recommend.ts`](src/lib/recommend.ts). Click "use as lunch /
+   dinner" to swap the suggestion in via `swapOrAddPlanEntry` (replaces
+   the slot's first entry, or adds a fresh one if the slot is empty).
+4. **Shopping list** (right column on desktop, below on mobile).
    Aggregated across all rows; rounds non-divisibles up to whole packs.
 
 The **macro auto-balancer** (Phase 3.8) runs on every render:
@@ -436,54 +441,50 @@ apply `applyGoalOverrides(li, goal, overrideMap)` (already exported from
 the per-class scalar multiplication. This makes "less oil at breakfast on
 cut" possible without touching the maintain baseline.
 
-### 7.3 Recommendation system (design)
+### 7.3 Recommendation system (v1 shipped)
 
-Goal: keep the planner small but offer "what should I cook next?"
-suggestions inline.
+[`src/lib/recommend.ts`](src/lib/recommend.ts) +
+[`src/app/plan/recommendation-panel.tsx`](src/app/plan/recommendation-panel.tsx) +
+`swapOrAddPlanEntry` action.
 
-**UX sketch.** A `<RecommendationPanel />` below the dinner row, structured
-as three columns:
-
-| Last week | Currently planned | Suggested next |
-|---|---|---|
-| Burrito | Burrito | Pasta with meat |
-| Japanese curry | Japanese curry | Indian curry |
-|  |  | Chicken risotto |
-
-- **Last week** — what was planned 7 days ago (read from
-  `meal_plan_entries` via `plan_date < today() - 6`). Greyed out, not
-  clickable.
-- **Currently planned** — duplicates lunch/dinner so the panel is a
-  one-glance summary.
-- **Suggested next** — 3–5 candidate recipes ranked by the scoring
-  function below. Click → swap into the lunch or dinner slot.
-
-**Scoring function** (pure, in `src/lib/recommend.ts`, fully unit-tested):
+**What it does today.** For each slot, ranks every non-breakfast recipe
+that isn't already planned and surfaces the top 3:
 
 ```
 score(candidate) =
-    + wMacroFit  · (1 − |target_macro_delta| / target)        // closer to goal = higher
-    + wVariety   · daysSinceLastCooked(candidate)              // not eaten recently
-    − wRedundant · sameCategory(candidate, lastWeek + planned) // skip "curry + curry"
-    − wOverlap   · sharedDominantIngredients(candidate, planned) // skip "chicken+chicken+chicken"
-    + wThrift    · ingredientReuseWithCurrentPlan(candidate)   // share an onion → cheaper
+    + goalNutritionFit                // cut: P/kcal×1000; bulk: kcal/10; maintain: flat 30
+    − 80 * sameCategoryAsOtherSlot    // hard variety penalty
+    − 50 * sameHeroAsOtherSlot        // softer variety penalty
+    −  0.5 * costPerServing           // mild thrift bonus
 ```
 
-Inputs: `meal_plan_entries` history, the recipes catalogue (with
-`category_id` + the dominant ingredient = the hero), and the current goal
-target. No LLM needed; it's a weighted sum over deterministic features.
+Deterministic and pure — fully unit-tested in
+[`tests/unit/recommend.test.ts`](tests/unit/recommend.test.ts) (filtering,
+variety penalties, goal-aware ranking, alphabetical tie-breaker, null
+category/hero handling).
 
-**Persistence.** No new tables. Recommendations are derived on the fly
-from `meal_plan_entries` + `recipes`. The "last week" column reads the
-single previous `plan_date` row per slot; if multiple plan dates exist,
-take the most recent one before today.
+Cost per serving comes from
+[`computeRecipeCost`](src/lib/cost.ts) on the unscaled recipe lines (any
+unit-mismatched line evaluates to 0 cost — a small thrift bonus, never
+an error).
 
-**Implementation order.**
-1. `src/lib/recommend.ts` — pure function + unit tests.
-2. Read past plan entries in `/plan`'s server component.
-3. New `<RecommendationPanel />` client component with click handlers
-   that call the existing slot-update server action.
-4. Decongest the page (§7.1) at the same time so the panel fits.
+The "reasons" array on each card surfaces the active penalties ("same
+category as other slot", "high protein density", …) for transparency.
+
+**v2 ideas (not built yet).**
+
+- **Last-week column.** Requires real plan history — `meal_plan_entries.date`
+  is currently a sentinel (`1970-01-01`). Once we start writing real dates
+  we can add `daysSinceLastCooked(candidate)` as a variety bonus.
+- **Ingredient-reuse thrift bonus.** If the candidate shares non-trivial
+  ingredients (onion, oil, rice) with the planned meals, give it a bump —
+  cooking adjacent recipes in the same week is cheaper.
+- **Macro-gap fit.** Today the goal-fit term is a per-recipe heuristic
+  (P/kcal for cut, kcal for bulk). A more accurate term would compute
+  the *remaining* macro budget after the other slot + breakfast, then
+  rank candidates whose per-serving profile lands closest to it. Not
+  worth doing until the per-goal balancer overrides land (§7.2) since
+  the macro balancer washes out most of the difference anyway.
 
 ### 7.4 Other things on the list
 
