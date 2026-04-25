@@ -1,5 +1,4 @@
 /**
-/**
  * Smoke test: verify the auto-scaler on /plan drives daily kcal to within
  * ±25 % of the target for all three goals — without touching anything in
  * the DB. Hits the running dev server.
@@ -12,7 +11,6 @@
  * lines, and the breakfast contributes ~40 g of fixed fat alone. So the
  * balancer can only get so close — the rest needs per-goal overrides on
  * those fixed lines (DEVELOPER_GUIDE §7.2 + §4.5).
- */
  *
  * Opt-in: set SMOKE=1 (and have a dev server on :3000 with a non-empty
  * plan) before running.
