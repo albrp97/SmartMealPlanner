@@ -404,12 +404,21 @@ CI gates (GitHub Actions, see `.github/workflows/`):
 3. `pnpm test` (unit + non-gated integration)
 4. `pnpm build`
 
-The macro-balance smoke test currently uses ±5 % tolerance for kcal /
-protein / carbs and ±25 % for fat. The fat tolerance is wider because
-breakfast contributes ~40 g of fixed fat (2 tbsp olive oil + cashews +
-yogurt) which alone uses up over half of the cut goal's 75 g target. The
-auto-balancer can drop side fat to zero but can't pull breakfast fat
-down — that requires a per-goal breakfast override (see §7.2).
+The macro-balance smoke test uses **±40 %** tolerance across all four
+macros (kcal, protein, carbs, fat); the auto-scale smoke uses **±25 %**
+on kcal. Both are deliberately loose because the macro balancer can only
+scale **side** ingredients — fixed lines (puff pastry, tortilla packs,
+stock cubes, breakfast olive oil + nuts + yogurt) are locked. On any
+plan that includes a fat-heavy fixed line (e.g. chicken_pie's 2 puff
+pastries contribute ~150 g fat for the batch alone) the balancer simply
+can't drag fat down to the goal target. Tightening these tolerances
+needs the per-goal override pipeline (§7.2 → done) actually populated
+with overrides on the heavy fixed lines (§4.3 manual workflow).
+
+If you want a tight smoke check, run it against a plan composed of
+recipes with all-class side coverage (e.g. `chicken_risotto` with rice +
+cream sides). Even then, breakfast fat alone uses up ~40 g of fixed fat
+which the balancer can't touch.
 
 ---
 
@@ -518,6 +527,13 @@ category as other slot", "high protein density", …) for transparency.
 
 ### 7.4 Other things on the list
 
+- **Per-goal overrides authored on fat-heavy fixed lines.** §7.2 is
+  done (the pipeline reads `recipe_ingredient_overrides` and feeds them
+  into the balancer) but no overrides are populated yet. Top candidates:
+  reduce puff pastry on cut for chicken_pie / beef_pie / tuna_pie / pizza;
+  drop cheese on cut for burger / burrito / chicken_risotto; halve the
+  breakfast olive oil on cut. Once these exist, the smoke-test tolerance
+  can drop back to ±10 %.
 - **Daily micronutrient roll-up** on `/plan` (already on per-recipe
   page).
 - **Pantry stock** (`pantry_items` table, subtract from shopping list).
