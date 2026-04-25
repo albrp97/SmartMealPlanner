@@ -50,6 +50,39 @@ export async function updateRecipe(id: string, recipeId: string): Promise<void> 
 	revalidatePath("/plan");
 }
 
+/**
+ * Recommendation panel action: drop `recipeId` into `slot`.
+ *
+ * If the slot already has at least one entry, replace the first entry's
+ * recipe (preserving the hero-pack count). Otherwise insert a fresh
+ * entry. Used by `<RecommendationPanel/>` so a single click swaps the
+ * suggestion in.
+ */
+export async function swapOrAddPlanEntry(
+	slot: "lunch" | "dinner",
+	recipeId: string,
+): Promise<void> {
+	if (!recipeId) return;
+	if (slot !== "lunch" && slot !== "dinner") return;
+	const supabase = await createClient();
+	const { data } = await supabase
+		.from("meal_plan_entries")
+		.select("id")
+		.eq("date", PLAN_DATE)
+		.eq("slot", slot)
+		.order("created_at", { ascending: true })
+		.limit(1);
+	const existing = data?.[0]?.id as string | undefined;
+	if (existing) {
+		await supabase.from("meal_plan_entries").update({ recipe_id: recipeId }).eq("id", existing);
+	} else {
+		await supabase
+			.from("meal_plan_entries")
+			.insert({ date: PLAN_DATE, slot, recipe_id: recipeId, servings: 1 });
+	}
+	revalidatePath("/plan");
+}
+
 export async function deletePlanEntry(id: string): Promise<void> {
 	if (!id) return;
 	const supabase = await createClient();
