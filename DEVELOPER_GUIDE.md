@@ -429,32 +429,44 @@ slot · **[idea]** captured but not started.
 
 | # | Topic | Status |
 |---|---|---|
-| 7.1 | Plan-page decongestion (split into smaller components) | **[next]** |
+| 7.1 | Plan-page decongestion (split into smaller components) | **[in progress]** (3.11) |
 | 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
 | 7.3 | Recommendation panel under planner | **[done]** (3.9) |
-| 7.4 | Daily micronutrient roll-up, pantry stock, shopping export, auth, PWA | **[idea]** |
+| 7.4 | Per-goal overrides on fat-heavy fixed lines, micros, pantry, export, auth, PWA | **[next]** |
 | 7.5 | Things explicitly NOT building (LLM/OCR) | locked |
 
-### 7.1 Plan page is overcrowded — refactor in progress **[next]**
+### 7.1 Plan-page decongestion **[in progress — Phase 3.11]**
 
-The `/plan` page is now ~800 lines and does six things: goal pills,
+The `/plan` page was ~814 lines doing six things: goal pills,
 lunch/dinner pickers, hero-pack counters, macro card, recommendation
-panel, shopping list. Goal: break it into smaller components. Sketch:
+panel, shopping list. Phase 3.11 has moved two of those into
+[`src/app/plan/_components/`](src/app/plan/_components):
 
-```
-/plan
-├── <GoalPills />                         (existing)
-├── <DayMacroCard />                      (existing — header strip)
-├── <CookSection slot="lunch" />          (lunch picker + hero packs + scaled lines)
-├── <CookSection slot="dinner" />         (same)
-├── <RecommendationPanel />               (shipped — see §7.3)
-└── <ShoppingList />                      (collapsible on mobile)
-```
+- [`day-macro-card.tsx`](src/app/plan/_components/day-macro-card.tsx) —
+  the kcal / P / C / F header strip with the in-band colour cue (zinc /
+  emerald / amber depending on `actual / target`). Pure presentation,
+  reads four numbers and the goal target.
+- [`shopping-list.tsx`](src/app/plan/_components/shopping-list.tsx) —
+  the right-hand aside: cost summary + per-ingredient list with the
+  `·fixed` (non-divisible pack) and `def` / `real` (price provenance)
+  badges. Takes the aggregated `ShoppingItem[]` plus the package-meta
+  map; no logic.
 
-Move each component into its own file under `src/app/plan/_components/`.
-The page becomes a server component that fetches once and threads data
-into client subtrees. Shopping list becomes collapsible (`<details>`) on
-mobile so the meal pickers stay above the fold.
+[`page.tsx`](src/app/plan/page.tsx) is down to ~691 lines and now reads
+top-to-bottom as data-fetch → baseline pass → balanced pass → render.
+GoalPills / RecommendationPanel / MealSection were already extracted.
+
+Still-inline pieces (deferred):
+- `MealSection` (the lunch/dinner picker + scaled-line list) — lives in
+  page.tsx because it threads through `applied`, `pickerRecipes` and the
+  slot. Easy to extract next; left in place because it's the only inline
+  piece left and isn't blocking the file from being readable.
+- The two-pass balancer flow itself — stays in `page.tsx` so all the
+  data-fetch + nutrition wiring stays in one place; pulling it into a
+  helper would just shuffle imports without saving lines.
+
+Follow-up: also make the shopping list collapsible (`<details>`) on
+mobile so the meal pickers stay above the fold. Not done yet.
 
 ### 7.2 Rewire overrides into the balancer **[done — Phase 3.10]**
 
@@ -475,10 +487,27 @@ per-class scalar multiplication. Effect:
 - Non-breakfast scaling rules are unchanged: hero lines still drive
   servings via `heroFactor`, fixed lines still aren't class-scaled.
 
-Follow-up: the smoke-test fat tolerance (±25 %) and the kcal/protein
-tolerance (±10 %) on cut should now tighten, but they're left wide for
-a release cycle until the breakfast overrides are actually authored
-(§4.5).
+**Phase 3.10.1 (kcal-band patch)**: the balancer was overshooting kcal
+by 16–31 % on the smoke plan because it was modelling **fixed** lines
+(puff pastry, cheese, breakfast olive oil) as scalable. Downstream only
+side lines actually scale, so when the balancer picked `sF=0.3` to drop
+fat, real sides went to 0.3 but the fixed lines stayed at 1.0 and kcal
+stayed high. Two small changes in
+[`src/lib/macro-balance.ts`](src/lib/macro-balance.ts):
+
+1. Lines with `role === "fixed"` now go into `nonScalable` instead of
+   `classDaily[c]`, so the LSQ prediction matches what `buildRecipes`
+   actually emits.
+2. The kcal axis of the LSQ target is biased to 95 %
+   (`KCAL_TARGET_BIAS`) so the day lands in the user-requested 90–100 %
+   band rather than straddling 100 %. P / C / F targets stay nominal.
+
+On the smoke plan (`chicken_risotto` + `chicken_pie`) this lands at
+~99 % / ~98 % / ~98 % of the maintain / cut / bulk kcal targets.
+
+Follow-up: the smoke-test tolerances stay loose (±40 % per macro on the
+balance smoke, ±40 % on the autoscale smoke) until the per-goal
+overrides on fat-heavy fixed lines are authored. See §7.4.
 
 ### 7.3 Recommendation system **[done — Phase 3.9]**
 

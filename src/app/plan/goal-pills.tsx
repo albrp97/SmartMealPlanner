@@ -8,7 +8,7 @@
  * navigation sidesteps the entire cache layer; the page is fast enough
  * that the reload is invisible.
  */
-import { GOAL_LABEL, GOALS, type Goal } from "@/lib/goals";
+import { GOALS, GOAL_LABEL, type Goal } from "@/lib/goals";
 
 export function GoalPills({ active }: { active: Goal }) {
 	return (

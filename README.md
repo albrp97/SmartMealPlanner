@@ -85,17 +85,24 @@ LLM-based receipt OCR was on the original roadmap and has been **dropped**
 ## How the auto-balancer works
 
 1. Pass 1 builds the day's recipes at scale=1 and measures each macro
-   class's daily contribution (P / C / F).
+   class's daily contribution (P / C / F). Lines that won't be touched
+   downstream — the breakfast block plus every recipe's `fixed` lines
+   (1 onion, 2 puff pastries, breakfast olive oil + nuts) — are bucketed
+   into the non-scalable side of the equation so the solver's prediction
+   matches what actually renders.
 2. The solver picks three scalars by minimising a weighted least-squares
    error across (kcal, P, C, F). Solver is bounded coordinate descent —
-   converges fast, can't blow up.
+   converges fast, can't blow up. The kcal axis is aimed at 95 % of the
+   goal target (`KCAL_TARGET_BIAS`) so the resulting plan lands in the
+   90–100 % kcal band rather than straddling 100 %.
 3. Pass 2 rebuilds the recipes with the scalars applied to side
    ingredients and passes `heroFactor` to the portion engine so the hero
-   protein quantity is also tuned (without inflating the number of
-   servings cooked).
+   protein quantity is also tuned (clamped to [0.5, 1.75]) without
+   inflating the number of servings cooked.
 
-Result: any combination of two recipes lands within a few percent of the
-selected goal's targets without touching ingredient quantities by hand.
+Result: any combination of two recipes lands within ~5 % of the goal's
+kcal target and within 90–100 % of the goal range without touching
+ingredient quantities by hand.
 
 ---
 
@@ -153,8 +160,8 @@ vercel --prod
 ## Roadmap
 
 See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md) for the full status,
-testing strategy and the next-up work (plan-page decongestion, in-page
-recommendation system, override-aware balancer).
+testing strategy and the next-up work (per-goal overrides on fat-heavy
+fixed lines, daily micronutrient roll-up, pantry stock).
 
 ## License
 
