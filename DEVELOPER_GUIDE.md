@@ -435,7 +435,7 @@ below. The remaining work is finishing scope, not expanding it.
 | 7.1 | Recommendation panel under planner | **[done]** (3.9) |
 | 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
 | 7.3 | Daily micronutrient roll-up on `/plan` | **[done]** (3.12) |
-| 7.4 | Recipe baseline audit (all ~20 recipes) | **[next]** |
+| 7.4 | Recipe baseline audit (all ~20 recipes) | **[done]** (3.13) |
 | 7.5 | Investigate "puff pastry shows 0.0 unit" rendering bug | **[next]** |
 | 7.6 | UI rework pass | **[next]** |
 | 7.7 | Deployment / architecture final touches | **[next]** |
@@ -537,23 +537,36 @@ Wiring in [`src/app/plan/page.tsx`](src/app/plan/page.tsx):
 Sodium uses the WHO upper-limit colouring (amber over 2300 mg) inherited
 from the per-recipe page.
 
-### 7.4 Recipe baseline audit **[next]**
+### 7.4 Recipe baseline audit **[done — Phase 3.13]**
 
 Six recipes were rebased to 1-pack hero baselines in Phase 3.10.1
 (`chicken_pie`, `chicken_risotto`, `pasta_with_chicken`, `puchero`,
-`rice_with_chicken_livers`, `rice_with_pork`). The remaining ~14
-recipes haven't been verified end-to-end. For each one, plan it on
-`/plan`, confirm at maintain · cut · bulk that:
+`rice_with_chicken_livers`, `rice_with_pork`). Phase 3.13 audited the
+remaining ~14 recipes against the §4.2 role taxonomy (no fractional
+non-divisible fixed lines; hero pack must align with whole servings;
+per-serving sides that should scale must carry `role='side'`).
 
-- Servings = whole-pack hero quantity ÷ heroPerServing lands at a
-  reasonable integer (not 17.6).
-- Side lines scale linearly with the hero (rice ratio holds).
-- Fixed lines (onion, stock cube, tortillas, puff pastry) stay at their
-  recipe defaults and don't collapse to 0 or balloon.
-- Per-serving kcal/macros match the recipe page.
+Six more recipes needed fixes; the rest were already valid. Patches
+applied to live DB via service-role `_patch.mjs`:
 
-Anything off → fix via a `_patch.mjs` per §3 (rebase the recipe to a
-1-pack hero baseline) and note the change in the commit body.
+| Recipe | Before | After |
+|---|---|---|
+| `beef_pie` | 0.5 bell_pepper, 0.5 beer (fixed) | 1 bell_pepper, 1 beer (fixed) |
+| `breakfast_daily` | 0.5 banana (fixed) | 1 banana (fixed) |
+| `burger` | srv=1, hero=150g, all sides fixed (0.5 onion / 0.5 tomato / 30g cheese / 1 egg / 1 wrap) | srv=3, hero=450g, sides scale (2 onion, 2 tomato, 90g cheese, 3 egg, 3 wrap) — pack-aligned at hero=450g of 500g pack |
+| `roast_chicken_with_potatoes` | srv=1, hero=250g of 1000g pack, sides fixed (would multiply hero ×4 but 1 onion / 2 potato / 100g carrot would never scale) | srv=4, hero=1000g, sides scale (4 onion, 8 potato, 400g carrot); seasoning fixed at 1 |
+| `pizza` | hero=50g chorizo of 1-unit pack → hero factor would multiply chorizo to 5×, but the 1-unit puff_pastry base wouldn't scale | hero=puff_pastry (1 unit), chorizo demoted to side (50g) so it scales with the dough quantity |
+| `shish_kebab` | srv=1, hero=200g of 850g pack, all veg fixed | srv=4, hero=800g, veg sides scale (4 bell_pepper, 4 tomato, 4 onion); yogurt + seasoning stay fixed |
+
+Rule of thumb codified for future seed work: if a recipe's hero is in
+grams and the hero pack contains multiple servings' worth, the recipe
+*must* be authored at `servings = pack_grams / per_serving_grams` with
+all per-serving accompaniments as `side`. Lone "shared" items (a single
+yogurt tub, one stock cube, marinade seasoning) stay `fixed` and may
+intentionally not scale.
+
+Verified: `pnpm typecheck` green, 90/90 unit + smoke pass, post-patch
+audit shows no fractional ND fixed lines remain in any recipe.
 
 ### 7.5 Investigate "puff pastry shows 0.0 unit" **[next]**
 
