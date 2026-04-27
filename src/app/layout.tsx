@@ -22,7 +22,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
 	width: "device-width",
 	initialScale: 1,
-	themeColor: "#0a0a0a",
+	viewportFit: "cover",
+	themeColor: "#05070a",
 };
 
 export default function RootLayout({
@@ -32,7 +33,7 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-			<body className="min-h-full flex flex-col">
+			<body className="crt-scanlines min-h-full flex flex-col pb-[calc(env(safe-area-inset-bottom)+56px)] sm:pb-0">
 				<QueryProvider>
 					<Nav />
 					{children}
