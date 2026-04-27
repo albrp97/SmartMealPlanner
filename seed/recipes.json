@@ -37,18 +37,18 @@
 				"'Hand of X' is a rough portion; treat as ~30 g for nuts and dried fruit until calibrated."
 			],
 			"ingredients": [
-				{ "name": "oatmeal", "quantity": 40, "unit": "g", "cut": 30, "bulk": 60 },
-				{ "name": "cashews", "quantity": 30, "unit": "g", "cut": 20, "bulk": 40, "note": "approx. 1 hand — to be calibrated" },
-				{ "name": "dried sweetened cranberries", "quantity": 30, "unit": "g", "cut": 0, "bulk": 30, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
-				{ "name": "jumbo raisins", "quantity": 30, "unit": "g", "cut": 0, "bulk": 40, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
-				{ "name": "creatine monohydrate (GymBeam)", "quantity": 5, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
-				{ "name": "whey protein (GymBeam)", "quantity": 30, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
-				{ "name": "yogurt 3.9% fat", "quantity": 130, "unit": "g" },
-				{ "name": "milk 3.5% fat", "quantity": 30, "unit": "ml", "note": "a splash — assume ~30 ml, to be calibrated" },
-				{ "name": "multivitamin (GymBeam)", "quantity": 1, "unit": "unit", "supplement": true, "brand": "GymBeam" },
-				{ "name": "omega 3 (GymBeam)", "quantity": 2, "unit": "unit", "supplement": true, "brand": "GymBeam" },
-				{ "name": "vitamin D3 + K2 (GymBeam)", "quantity": 1, "unit": "unit", "supplement": true, "brand": "GymBeam" },
-				{ "name": "magnesium bisglycinate (GymBeam)", "quantity": 2, "unit": "unit", "supplement": true, "brand": "GymBeam" }
+				{ "name": "oatmeal", "role": "side", "quantity": 40, "unit": "g", "cut": 30, "bulk": 60 },
+				{ "name": "cashews", "role": "side", "quantity": 30, "unit": "g", "cut": 20, "bulk": 40, "note": "approx. 1 hand — to be calibrated" },
+				{ "name": "dried sweetened cranberries", "role": "side", "quantity": 30, "unit": "g", "cut": 0, "bulk": 30, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
+				{ "name": "jumbo raisins", "role": "side", "quantity": 30, "unit": "g", "cut": 0, "bulk": 40, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
+				{ "name": "creatine monohydrate (GymBeam)", "role": "fixed", "quantity": 5, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
+				{ "name": "whey protein (GymBeam)", "role": "fixed", "quantity": 30, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
+				{ "name": "yogurt 3.9% fat", "role": "side", "quantity": 130, "unit": "g" },
+				{ "name": "milk 3.5% fat", "role": "fixed", "quantity": 30, "unit": "ml", "note": "a splash — assume ~30 ml, to be calibrated" },
+				{ "name": "multivitamin (GymBeam)", "role": "fixed", "quantity": 1, "unit": "unit", "supplement": true, "brand": "GymBeam" },
+				{ "name": "omega 3 (GymBeam)", "role": "fixed", "quantity": 2, "unit": "unit", "supplement": true, "brand": "GymBeam" },
+				{ "name": "vitamin D3 + K2 (GymBeam)", "role": "fixed", "quantity": 1, "unit": "unit", "supplement": true, "brand": "GymBeam" },
+				{ "name": "magnesium bisglycinate (GymBeam)", "role": "fixed", "quantity": 2, "unit": "unit", "supplement": true, "brand": "GymBeam" }
 			]
 		},
 		{
@@ -62,12 +62,12 @@
 			"missing": ["salt", "oil", "spices"],
 			"base": { "ingredient": "puff pastry", "quantity": 2, "unit": "unit", "note": "shared base for any savoury pie" },
 			"ingredients": [
-				{ "name": "puff pastry", "quantity": 2, "unit": "unit" },
-				{ "name": "onion", "quantity": 1, "unit": "unit" },
-				{ "name": "bell pepper", "quantity": 0.5, "unit": "unit" },
-				{ "name": "ground beef", "quantity": 500, "unit": "g" },
-				{ "name": "tomato sauce", "quantity": 1, "unit": "unit", "note": "approx. 1 small jar" },
-				{ "name": "beer", "quantity": 0.5, "unit": "unit" }
+				{ "name": "puff pastry", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "bell pepper", "role": "fixed", "quantity": 0.5, "unit": "unit" },
+				{ "name": "ground beef", "role": "hero", "quantity": 500, "unit": "g" },
+				{ "name": "tomato sauce", "role": "fixed", "quantity": 1, "unit": "unit", "note": "approx. 1 small jar" },
+				{ "name": "beer", "role": "fixed", "quantity": 0.5, "unit": "unit" }
 			]
 		},
 		{
@@ -81,11 +81,11 @@
 			"missing": ["salt", "oil", "spices"],
 			"base": { "ingredient": "puff pastry", "quantity": 2, "unit": "unit" },
 			"ingredients": [
-				{ "name": "puff pastry", "quantity": 2, "unit": "unit" },
-				{ "name": "onion", "quantity": 2, "unit": "unit" },
-				{ "name": "chicken", "quantity": 400, "unit": "g" },
-				{ "name": "cream", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
-				{ "name": "mushrooms", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
+				{ "name": "puff pastry", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "chicken", "role": "hero", "quantity": 400, "unit": "g" },
+				{ "name": "cream", "role": "side", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
+				{ "name": "mushrooms", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
 			]
 		},
 		{
@@ -99,10 +99,10 @@
 			"missing": ["salt", "oil", "spices"],
 			"base": { "ingredient": "puff pastry", "quantity": 2, "unit": "unit" },
 			"ingredients": [
-				{ "name": "puff pastry", "quantity": 2, "unit": "unit" },
-				{ "name": "tuna", "quantity": 2, "unit": "unit", "note": "2 cans" },
-				{ "name": "egg", "quantity": 4, "unit": "unit" },
-				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" }
+				{ "name": "puff pastry", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "tuna", "role": "hero", "quantity": 2, "unit": "unit", "note": "2 cans" },
+				{ "name": "egg", "role": "fixed", "quantity": 4, "unit": "unit" },
+				{ "name": "tomato sauce", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -114,12 +114,12 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "noodles", "quantity": 150, "unit": "g", "cut": 110, "bulk": 200 },
-				{ "name": "cabbage", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
-				{ "name": "bell pepper", "quantity": 0.3333333, "unit": "unit" },
-				{ "name": "onion", "quantity": 0.5, "unit": "unit" },
-				{ "name": "chicken", "quantity": 100, "unit": "g" },
-				{ "name": "carrot", "quantity": 1, "unit": "unit" }
+				{ "name": "noodles", "role": "side", "quantity": 150, "unit": "g", "cut": 110, "bulk": 200 },
+				{ "name": "cabbage", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
+				{ "name": "bell pepper", "role": "fixed", "quantity": 0.3333333, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 0.5, "unit": "unit" },
+				{ "name": "chicken", "role": "hero", "quantity": 100, "unit": "g" },
+				{ "name": "carrot", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -131,12 +131,12 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
-				{ "name": "chicken", "quantity": 100, "unit": "g" },
-				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" },
-				{ "name": "beer", "quantity": 1, "unit": "unit" },
-				{ "name": "yogurt", "quantity": 1, "unit": "unit" },
-				{ "name": "carrot", "quantity": 1, "unit": "unit" }
+				{ "name": "rice", "role": "side", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
+				{ "name": "chicken", "role": "hero", "quantity": 100, "unit": "g" },
+				{ "name": "tomato sauce", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "beer", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "yogurt", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "carrot", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -148,14 +148,14 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
-				{ "name": "chicken", "quantity": 100, "unit": "g" },
-				{ "name": "carrot", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 0.5, "unit": "unit" },
-				{ "name": "potato", "quantity": 0.5, "unit": "unit" },
-				{ "name": "honey", "quantity": 5, "unit": "g", "note": "1 teaspoon" },
-				{ "name": "golden curry paste", "quantity": 1, "unit": "unit", "note": "1 cube" },
-				{ "name": "stock cube", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
+				{ "name": "rice", "role": "side", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
+				{ "name": "chicken", "role": "hero", "quantity": 100, "unit": "g" },
+				{ "name": "carrot", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 0.5, "unit": "unit" },
+				{ "name": "potato", "role": "fixed", "quantity": 0.5, "unit": "unit" },
+				{ "name": "honey", "role": "fixed", "quantity": 5, "unit": "g", "note": "1 teaspoon" },
+				{ "name": "golden curry paste", "role": "fixed", "quantity": 1, "unit": "unit", "note": "1 cube" },
+				{ "name": "stock cube", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
 			]
 		},
 		{
@@ -167,14 +167,14 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "chicken livers", "quantity": 250, "unit": "g" },
-				{ "name": "chicken", "quantity": 250, "unit": "g" },
-				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
-				{ "name": "tomato", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 2, "unit": "unit" },
-				{ "name": "bell pepper", "quantity": 1, "unit": "unit" },
-				{ "name": "beer", "quantity": 1, "unit": "unit" },
-				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" }
+				{ "name": "chicken livers", "role": "hero", "quantity": 250, "unit": "g" },
+				{ "name": "chicken", "role": "side", "quantity": 250, "unit": "g" },
+				{ "name": "rice", "role": "side", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
+				{ "name": "tomato", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "bell pepper", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "beer", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "tomato sauce", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -187,11 +187,11 @@
 			"completeness": "partial",
 			"missing": ["onion?", "bell pepper?", "tomato sauce?"],
 			"ingredients": [
-				{ "name": "pork", "quantity": 250, "unit": "g" },
-				{ "name": "chorizo", "quantity": 1, "unit": "unit" },
-				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
-				{ "name": "tomato", "quantity": 1, "unit": "unit" },
-				{ "name": "beer", "quantity": 1, "unit": "unit" }
+				{ "name": "pork", "role": "hero", "quantity": 250, "unit": "g" },
+				{ "name": "chorizo", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "rice", "role": "side", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
+				{ "name": "tomato", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "beer", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -203,11 +203,11 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "chicken", "quantity": 250, "unit": "g" },
-				{ "name": "rice", "quantity": 250, "unit": "g", "cut": 200, "bulk": 320 },
-				{ "name": "cream", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
-				{ "name": "mushrooms", "quantity": 1, "unit": "unit", "note": "quantity not specified" },
-				{ "name": "grated cheese", "quantity": 1, "unit": "unit", "note": "1 small bag" }
+				{ "name": "chicken", "role": "hero", "quantity": 250, "unit": "g" },
+				{ "name": "rice", "role": "side", "quantity": 250, "unit": "g", "cut": 200, "bulk": 320 },
+				{ "name": "cream", "role": "side", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
+				{ "name": "mushrooms", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified" },
+				{ "name": "grated cheese", "role": "fixed", "quantity": 1, "unit": "unit", "note": "1 small bag" }
 			]
 		},
 		{
@@ -219,11 +219,11 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
-				{ "name": "chicken", "quantity": 100, "unit": "g" },
-				{ "name": "cabbage", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
-				{ "name": "carrot", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 1, "unit": "unit" }
+				{ "name": "rice", "role": "side", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
+				{ "name": "chicken", "role": "hero", "quantity": 100, "unit": "g" },
+				{ "name": "cabbage", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
+				{ "name": "carrot", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -237,7 +237,7 @@
 			"missing": ["sauce / topping not specified"],
 			"base": { "ingredient": "pasta", "quantity": 100, "unit": "g", "note": "per single plate" },
 			"ingredients": [
-				{ "name": "pasta", "quantity": 100, "unit": "g" }
+				{ "name": "pasta", "role": "side", "quantity": 100, "unit": "g" }
 			]
 		},
 		{
@@ -260,12 +260,12 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "ground beef", "quantity": 500, "unit": "g" },
-				{ "name": "pasta", "quantity": 500, "unit": "g", "cut": 400, "bulk": 650 },
-				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 3, "unit": "unit" },
-				{ "name": "beer", "quantity": 1, "unit": "unit" },
-				{ "name": "stock cube", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
+				{ "name": "ground beef", "role": "hero", "quantity": 500, "unit": "g" },
+				{ "name": "pasta", "role": "side", "quantity": 500, "unit": "g", "cut": 400, "bulk": 650 },
+				{ "name": "tomato sauce", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 3, "unit": "unit" },
+				{ "name": "beer", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "stock cube", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
 			]
 		},
 		{
@@ -333,8 +333,8 @@
 			"completeness": "partial",
 			"missing": ["meat (lamb / chicken)", "bread / pita", "sauce"],
 			"ingredients": [
-				{ "name": "tomato", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 1, "unit": "unit" }
+				{ "name": "tomato", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 1, "unit": "unit" }
 			]
 		},
 		{
@@ -346,16 +346,16 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "minced chicken", "quantity": 500, "unit": "g" },
-				{ "name": "tortilla wraps", "quantity": 6, "unit": "unit" },
-				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
-				{ "name": "beans", "quantity": 1, "unit": "unit", "note": "1 jar" },
-				{ "name": "avocado", "quantity": 2, "unit": "unit" },
-				{ "name": "grated cheese", "quantity": 1, "unit": "unit", "note": "1 small bag" },
-				{ "name": "bell pepper", "quantity": 1, "unit": "unit" },
-				{ "name": "onion", "quantity": 3, "unit": "unit" },
-				{ "name": "yogurt", "quantity": 1, "unit": "unit" },
-				{ "name": "seasoning", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
+				{ "name": "minced chicken", "role": "hero", "quantity": 500, "unit": "g" },
+				{ "name": "tortilla wraps", "role": "fixed", "quantity": 6, "unit": "unit" },
+				{ "name": "rice", "role": "side", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
+				{ "name": "beans", "role": "fixed", "quantity": 1, "unit": "unit", "note": "1 jar" },
+				{ "name": "avocado", "role": "fixed", "quantity": 2, "unit": "unit" },
+				{ "name": "grated cheese", "role": "fixed", "quantity": 1, "unit": "unit", "note": "1 small bag" },
+				{ "name": "bell pepper", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "onion", "role": "fixed", "quantity": 3, "unit": "unit" },
+				{ "name": "yogurt", "role": "fixed", "quantity": 1, "unit": "unit" },
+				{ "name": "seasoning", "role": "fixed", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
 			]
 		}
 	]

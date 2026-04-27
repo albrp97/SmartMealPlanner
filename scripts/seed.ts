@@ -39,6 +39,8 @@ interface SeedRecipeIngredient {
 	supplement?: boolean;
 	brand?: string;
 	note?: string;
+	/** hero | side | fixed — see DEVELOPER_GUIDE §4.2. */
+	role?: "hero" | "side" | "fixed";
 	/** Optional per-goal overrides. quantity=0 drops the line at that goal. */
 	cut?: number;
 	bulk?: number;
@@ -155,7 +157,14 @@ async function main() {
 
 	console.log("→ Recipes (auto-discovering missing ingredients from recipes.json)");
 	// Some recipe ingredients aren't in prices.json yet — create stubs so the FK works.
-	const knownSlugs = new Set(ingredientRows.map((r) => r.slug));
+	// CRITICAL: only stub slugs that don't already exist in the DB. Previously
+	// we upserted with onConflict:slug which clobbered package_size/package_unit
+	// set by scripts/seed-default-prices.ts — the symptom was every "missing"
+	// ingredient (ground beef, chicken, pasta, rice, ...) ending up with
+	// package_size:1, which broke hero-pack accounting on /plan.
+	const { data: existingIngs } = await supabase.from("ingredients").select("slug");
+	const dbSlugs = new Set((existingIngs ?? []).map((r) => r.slug));
+	const knownSlugs = new Set([...ingredientRows.map((r) => r.slug), ...dbSlugs]);
 	const stubIngredients: {
 		slug: string;
 		name: string;
@@ -181,10 +190,9 @@ async function main() {
 		}
 	}
 	if (stubIngredients.length > 0) {
-		console.log(`  · stubbing ${stubIngredients.length} ingredients without prices yet`);
-		const { error } = await supabase
-			.from("ingredients")
-			.upsert(stubIngredients, { onConflict: "slug" });
+		console.log(`  · stubbing ${stubIngredients.length} brand-new ingredient(s) without prices yet`);
+		// Plain insert (no onConflict) so we never overwrite existing rows.
+		const { error } = await supabase.from("ingredients").insert(stubIngredients);
 		if (error) throw error;
 	}
 
@@ -224,6 +232,7 @@ async function main() {
 					ingredient_id: ingredientId,
 					quantity: ing.quantity ?? ing.qty ?? 1,
 					unit: ing.unit === "ml" ? "ml" : ing.unit === "unit" ? "unit" : "g",
+					role: ing.role ?? "side",
 					notes: ing.note ?? null,
 					position: idx,
 				};
