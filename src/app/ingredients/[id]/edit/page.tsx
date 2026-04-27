@@ -1,3 +1,4 @@
+import { TermHeading } from "@/components/ui/term-heading";
 import { createClient } from "@/lib/db/client-server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -22,13 +23,15 @@ export default async function EditIngredientPage({ params }: { params: Promise<{
 	}
 
 	return (
-		<main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
+		<main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10 sm:gap-6">
 			<header className="space-y-1">
-				<Link href="/ingredients" className="text-xs text-zinc-500 hover:text-zinc-300">
-					← Ingredients
+				<Link href="/ingredients" className="font-mono text-xs text-fg-mute hover:text-fg">
+					← ingredients
 				</Link>
-				<h1 className="text-2xl font-semibold tracking-tight">Edit · {data.name}</h1>
-				<p className="font-mono text-xs text-zinc-500">{data.slug}</p>
+				<TermHeading level={1} prompt="~" caret>
+					edit · {data.name}
+				</TermHeading>
+				<p className="font-mono text-xs text-fg-mute">{data.slug}</p>
 			</header>
 			<IngredientForm mode="edit" initial={data as IngredientRow} />
 		</main>

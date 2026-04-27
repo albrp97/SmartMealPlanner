@@ -100,7 +100,7 @@ export function RecipeForm({
 			<input type="hidden" name="ingredients_json" value={ingredientsJson} />
 
 			{state.error ? (
-				<div className="rounded-md border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+				<div className="rounded-sm border border-rose/40 bg-rose/10 px-3 py-2 font-mono text-sm text-rose">
 					{state.error}
 				</div>
 			) : null}
@@ -197,20 +197,21 @@ export function RecipeForm({
 
 			<section>
 				<div className="mb-2 flex items-center justify-between">
-					<h2 className="text-sm font-medium text-zinc-300">
-						Ingredients <span className="text-xs text-zinc-500">({lines.length})</span>
+					<h2 className="font-mono text-sm text-fg">
+						<span className="text-accent">▣</span> ingredients{" "}
+						<span className="text-xs text-fg-mute">({lines.length})</span>
 					</h2>
 					<button
 						type="button"
 						onClick={addLine}
-						className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-zinc-500"
+						className="inline-flex min-h-[36px] items-center rounded-sm border border-grid bg-bg-sunk px-3 py-1 font-mono text-xs text-fg-dim hover:border-fg-mute hover:text-fg"
 					>
-						+ Add row
+						+ add row
 					</button>
 				</div>
 				{lines.length === 0 ? (
-					<p className="rounded-md border border-dashed border-zinc-800 px-3 py-4 text-center text-xs text-zinc-500">
-						No ingredients yet — click <span className="text-zinc-300">+ Add row</span>.
+					<p className="rounded-sm border border-dashed border-grid px-3 py-4 text-center font-mono text-xs text-fg-mute">
+						no ingredients yet — tap <span className="text-fg">+ add row</span>.
 					</p>
 				) : (
 					<ul className="space-y-2">
@@ -218,11 +219,11 @@ export function RecipeForm({
 							<li
 								// biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id until persisted
 								key={idx}
-								className="grid grid-cols-12 items-end gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2"
+								className="grid grid-cols-12 items-end gap-2 rounded-sm border border-grid bg-bg-elev px-2 py-2"
 							>
-								<label className="col-span-5 block">
-									<span className="block text-[10px] uppercase tracking-wider text-zinc-500">
-										Ingredient
+								<label className="col-span-12 block sm:col-span-5">
+									<span className="block font-mono text-[10px] uppercase tracking-widest text-fg-mute">
+										ingredient
 									</span>
 									<select
 										value={l.ingredient_id}
@@ -234,7 +235,7 @@ export function RecipeForm({
 												unit: opt?.package_unit ?? l.unit,
 											});
 										}}
-										className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+										className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-2 py-1 font-mono text-base text-fg outline-none focus:border-accent"
 									>
 										{options.map((o) => (
 											<option key={o.id} value={o.id}>
@@ -243,29 +244,30 @@ export function RecipeForm({
 										))}
 									</select>
 								</label>
-								<label className="col-span-2 block">
-									<span className="block text-[10px] uppercase tracking-wider text-zinc-500">
-										Qty
+								<label className="col-span-4 block sm:col-span-2">
+									<span className="block font-mono text-[10px] uppercase tracking-widest text-fg-mute">
+										qty
 									</span>
 									<input
 										type="number"
+										inputMode="decimal"
 										step="0.01"
 										min="0"
 										value={l.quantity}
 										onChange={(e) => updateLine(idx, { quantity: e.target.value })}
-										className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+										className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-2 py-1 font-mono text-base text-fg outline-none focus:border-accent"
 									/>
 								</label>
-								<label className="col-span-2 block">
-									<span className="block text-[10px] uppercase tracking-wider text-zinc-500">
-										Unit
+								<label className="col-span-3 block sm:col-span-2">
+									<span className="block font-mono text-[10px] uppercase tracking-widest text-fg-mute">
+										unit
 									</span>
 									<select
 										value={l.unit}
 										onChange={(e) =>
 											updateLine(idx, { unit: e.target.value as "g" | "ml" | "unit" })
 										}
-										className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+										className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-2 py-1 font-mono text-base text-fg outline-none focus:border-accent"
 									>
 										{PACKAGE_UNITS.map((u) => (
 											<option key={u} value={u}>
@@ -274,21 +276,22 @@ export function RecipeForm({
 										))}
 									</select>
 								</label>
-								<label className="col-span-2 block">
-									<span className="block text-[10px] uppercase tracking-wider text-zinc-500">
-										Note
+								<label className="col-span-4 block sm:col-span-2">
+									<span className="block font-mono text-[10px] uppercase tracking-widest text-fg-mute">
+										note
 									</span>
 									<input
 										type="text"
 										value={l.notes}
 										onChange={(e) => updateLine(idx, { notes: e.target.value })}
-										className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+										className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-2 py-1 font-mono text-base text-fg outline-none focus:border-accent"
 									/>
 								</label>
 								<button
 									type="button"
 									onClick={() => removeLine(idx)}
-									className="col-span-1 rounded-md border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-900/20"
+									aria-label="Remove ingredient row"
+									className="col-span-1 inline-flex min-h-[40px] items-center justify-center rounded-sm border border-grid bg-bg-sunk px-2 py-1 font-mono text-sm text-fg-dim hover:border-rose hover:text-rose"
 								>
 									×
 								</button>
@@ -302,15 +305,15 @@ export function RecipeForm({
 				<button
 					type="submit"
 					disabled={pending}
-					className="rounded-md border border-emerald-700 bg-emerald-600/20 px-4 py-1.5 text-sm font-medium text-emerald-200 hover:bg-emerald-600/30 disabled:opacity-50"
+					className="inline-flex min-h-[40px] items-center rounded-sm border border-accent/60 bg-accent/10 px-4 py-1.5 font-mono text-sm text-accent hover:bg-accent/20 disabled:opacity-50"
 				>
-					{pending ? "Saving…" : mode === "edit" ? "Save changes" : "Create recipe"}
+					{pending ? "saving…" : mode === "edit" ? "save changes" : "create recipe"}
 				</button>
 				<a
 					href="/recipes"
-					className="rounded-md border border-zinc-700 px-4 py-1.5 text-sm text-zinc-300 hover:border-zinc-500"
+					className="inline-flex min-h-[40px] items-center rounded-sm border border-grid bg-bg-sunk px-4 py-1.5 font-mono text-sm text-fg-dim hover:border-fg-mute hover:text-fg"
 				>
-					Cancel
+					cancel
 				</a>
 			</div>
 		</form>
@@ -331,27 +334,31 @@ function Field(props: {
 	error?: string;
 }) {
 	const controlled = props.value !== undefined && props.onChange !== undefined;
+	const numeric = props.type === "number";
 	return (
 		<label className="block space-y-1">
-			<span className="block text-xs uppercase tracking-wider text-zinc-400">
+			<span className="block font-mono text-xs uppercase tracking-widest text-fg-dim">
 				{props.label}
-				{props.required ? <span className="text-red-400"> *</span> : null}
+				{props.required ? <span className="text-rose"> *</span> : null}
 			</span>
 			<input
 				name={props.name}
 				type={props.type ?? "text"}
+				inputMode={numeric ? "decimal" : undefined}
 				min={props.min}
 				placeholder={props.placeholder}
 				{...(controlled
 					? { value: props.value, onChange: (e) => props.onChange?.(e.target.value) }
 					: { defaultValue: props.defaultValue })}
 				required={props.required}
-				className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+				className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-3 py-1.5 font-mono text-base text-fg outline-none focus:border-accent"
 			/>
 			{props.hint && !props.error ? (
-				<span className="block text-[11px] text-zinc-500">{props.hint}</span>
+				<span className="block font-mono text-[11px] text-fg-mute">{props.hint}</span>
 			) : null}
-			{props.error ? <span className="block text-xs text-red-400">{props.error}</span> : null}
+			{props.error ? (
+				<span className="block font-mono text-xs text-rose">{props.error}</span>
+			) : null}
 		</label>
 	);
 }
@@ -366,11 +373,13 @@ function Select(props: {
 }) {
 	return (
 		<label className="block space-y-1">
-			<span className="block text-xs uppercase tracking-wider text-zinc-400">{props.label}</span>
+			<span className="block font-mono text-xs uppercase tracking-widest text-fg-dim">
+				{props.label}
+			</span>
 			<select
 				name={props.name}
 				defaultValue={props.defaultValue}
-				className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+				className="w-full min-h-[40px] rounded-sm border border-grid bg-bg-sunk px-3 py-1.5 font-mono text-base text-fg outline-none focus:border-accent"
 			>
 				{props.options.map((o) => (
 					<option key={o} value={o}>
@@ -379,9 +388,11 @@ function Select(props: {
 				))}
 			</select>
 			{props.hint && !props.error ? (
-				<span className="block text-[11px] text-zinc-500">{props.hint}</span>
+				<span className="block font-mono text-[11px] text-fg-mute">{props.hint}</span>
 			) : null}
-			{props.error ? <span className="block text-xs text-red-400">{props.error}</span> : null}
+			{props.error ? (
+				<span className="block font-mono text-xs text-rose">{props.error}</span>
+			) : null}
 		</label>
 	);
 }
@@ -395,14 +406,18 @@ function TextArea(props: {
 }) {
 	return (
 		<label className="block space-y-1">
-			<span className="block text-xs uppercase tracking-wider text-zinc-400">{props.label}</span>
+			<span className="block font-mono text-xs uppercase tracking-widest text-fg-dim">
+				{props.label}
+			</span>
 			<textarea
 				name={props.name}
 				defaultValue={props.defaultValue}
 				rows={props.rows ?? 3}
-				className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+				className="w-full rounded-sm border border-grid bg-bg-sunk px-3 py-1.5 font-mono text-base text-fg outline-none focus:border-accent"
 			/>
-			{props.error ? <span className="block text-xs text-red-400">{props.error}</span> : null}
+			{props.error ? (
+				<span className="block font-mono text-xs text-rose">{props.error}</span>
+			) : null}
 		</label>
 	);
 }

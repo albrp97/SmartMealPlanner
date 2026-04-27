@@ -1,3 +1,5 @@
+import { Surface } from "@/components/ui/surface";
+import { TermHeading } from "@/components/ui/term-heading";
 import { createClient } from "@/lib/db/client-server";
 import { type NutritionLineInput, computeRecipeNutrition } from "@/lib/nutrition";
 import Link from "next/link";
@@ -73,60 +75,68 @@ export default async function RecipesPage() {
 	}, {});
 
 	return (
-		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
-			<header className="flex items-end justify-between gap-4">
+		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10 sm:gap-6">
+			<header className="flex flex-wrap items-end justify-between gap-3">
 				<div className="space-y-1">
-					<p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Phase 1</p>
-					<h1 className="text-2xl font-semibold tracking-tight">Recipes</h1>
-					<p className="text-sm text-zinc-400">{recipes.length} recipes · click for cost preview</p>
+					<TermHeading level={1} prompt="$" caret>
+						recipes
+					</TermHeading>
+					<p className="font-mono text-xs text-fg-dim sm:text-sm">
+						{recipes.length} recipes · tap for cost &amp; macro preview
+					</p>
 				</div>
 				<div className="flex gap-2">
 					<Link
 						href="/ingredients"
-						className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500"
+						className="inline-flex min-h-[40px] items-center rounded-sm border border-grid bg-bg-sunk px-3 py-1.5 font-mono text-xs text-fg-dim hover:border-fg-mute hover:text-fg"
 					>
-						Ingredients →
+						▣ ingredients →
 					</Link>
 					<Link
 						href="/recipes/new"
-						className="rounded-md border border-emerald-700 bg-emerald-600/20 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-600/30"
+						className="inline-flex min-h-[40px] items-center rounded-sm border border-accent/60 bg-accent/10 px-3 py-1.5 font-mono text-xs text-accent hover:bg-accent/20"
 					>
-						+ New
+						+ new
 					</Link>
 				</div>
 			</header>
 
 			{error ? (
-				<div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
-					Failed to load: {error.message}
-				</div>
+				<Surface
+					aria-label="Load error"
+					className="border-rose/40 bg-rose/10 px-4 py-3 font-mono text-sm text-rose"
+				>
+					! failed to load: {error.message}
+				</Surface>
 			) : null}
 
-			<div className="space-y-6">
+			<div className="space-y-5 sm:space-y-6">
 				{Object.entries(grouped).map(([cat, items]) => (
 					<section key={cat}>
-						<h2 className="mb-2 font-mono text-xs uppercase tracking-wider text-zinc-500">{cat}</h2>
-						<ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+						<TermHeading level={2} prompt="◇">
+							{cat}
+						</TermHeading>
+						<ul className="mt-2 divide-y divide-grid rounded-sm border border-grid bg-bg-elev">
 							{items.map((r) => (
 								<li key={r.id}>
 									<Link
 										href={`/recipes/${r.slug}`}
-										className="flex items-center justify-between px-3 py-2 hover:bg-zinc-900/30"
+										className="flex min-h-[56px] items-center justify-between gap-3 px-3 py-2 hover:bg-bg-sunk"
 									>
-										<div>
-											<p className="text-sm text-zinc-100">{r.name}</p>
-											<p className="font-mono text-[10px] text-zinc-500">
-												{r.meal_type} · {r.servings} {r.servings === 1 ? "serving" : "servings"}
+										<div className="min-w-0">
+											<p className="truncate font-mono text-sm text-fg">{r.name}</p>
+											<p className="font-mono text-[10px] text-fg-mute">
+												{r.meal_type} · {r.servings} {r.servings === 1 ? "srv" : "srvs"}
 											</p>
 										</div>
-										<div className="flex items-center gap-3 text-right">
-											<span className="font-mono text-xs text-sky-300">
+										<div className="flex shrink-0 items-center gap-3 text-right">
+											<span className="font-mono text-xs text-cyan">
 												{r.kcalPerServing > 0 ? `${r.kcalPerServing} kcal` : "—"}
 												{r.partial ? (
-													<span className="ml-1 text-[10px] text-amber-400">*</span>
+													<span className="ml-1 text-[10px] text-amber">*</span>
 												) : null}
 											</span>
-											<span className="text-xs text-zinc-500">→</span>
+											<span className="font-mono text-xs text-fg-mute">↗</span>
 										</div>
 									</Link>
 								</li>

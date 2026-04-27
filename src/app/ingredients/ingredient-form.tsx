@@ -128,7 +128,7 @@ export function IngredientForm({ mode, initial }: Props) {
 	return (
 		<form action={formAction} className="space-y-6">
 			{state.error ? (
-				<div className="rounded-md border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+				<div className="rounded-sm border border-rose/40 bg-rose/10 px-3 py-2 font-mono text-sm text-rose">
 					{state.error}
 				</div>
 			) : null}
@@ -258,14 +258,14 @@ export function IngredientForm({ mode, initial }: Props) {
 						/>
 					</FormRow>
 
-					<label className="mt-6 flex items-center gap-2 text-sm text-zinc-300">
+					<label className="mt-6 flex items-center gap-2 font-mono text-sm text-fg-dim">
 						<input
 							type="checkbox"
 							name="is_supplement"
 							defaultChecked={initial?.is_supplement ?? false}
-							className="h-4 w-4 rounded border-zinc-700 bg-zinc-900"
+							className="h-4 w-4 rounded-sm border-grid bg-bg-sunk"
 						/>
-						Supplement
+						supplement
 					</label>
 				</div>
 
@@ -295,16 +295,16 @@ export function IngredientForm({ mode, initial }: Props) {
 				</CardHeader>
 
 				{lookupError ? (
-					<p className="mb-3 text-xs text-amber-400">{lookupError}</p>
+					<p className="mb-3 font-mono text-xs text-amber">{lookupError}</p>
 				) : lookupHint ? (
-					<p className="mb-3 text-xs text-zinc-400">
-						Matched <span className="text-zinc-200">{lookupHint.matched_product_name}</span>
+					<p className="mb-3 font-mono text-xs text-fg-dim">
+						matched <span className="text-fg">{lookupHint.matched_product_name}</span>
 						{lookupHint.matched_product_brand ? ` · ${lookupHint.matched_product_brand}` : ""} ·{" "}
 						<a
 							href={lookupHint.off_url}
 							target="_blank"
 							rel="noreferrer"
-							className="text-emerald-400 hover:underline"
+							className="text-accent hover:underline"
 						>
 							OpenFoodFacts ↗
 						</a>
@@ -423,10 +423,10 @@ function FormRow({
 		<div className="space-y-1">
 			<Label>
 				{label}
-				{required ? <span className="text-red-400"> *</span> : null}
+				{required ? <span className="text-rose"> *</span> : null}
 			</Label>
 			{children}
-			{hint && !error ? <p className="text-[11px] text-zinc-500">{hint}</p> : null}
+			{hint && !error ? <p className="font-mono text-[11px] text-fg-mute">{hint}</p> : null}
 			<FieldError>{error}</FieldError>
 		</div>
 	);

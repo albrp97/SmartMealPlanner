@@ -1,3 +1,5 @@
+import { Surface } from "@/components/ui/surface";
+import { TermHeading } from "@/components/ui/term-heading";
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
 import { GOALS, GOAL_LABEL, type Goal, TARGETS, isGoal, pct } from "@/lib/goals";
@@ -278,95 +280,106 @@ export default async function RecipeDetailPage({
 	];
 
 	return (
-		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
-			<header className="flex items-end justify-between gap-4">
-				<div className="space-y-1">
-					<Link href="/recipes" className="text-xs text-zinc-500 hover:text-zinc-300">
-						← Recipes
+		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10 sm:gap-6">
+			<header className="flex flex-wrap items-end justify-between gap-3">
+				<div className="space-y-1 min-w-0">
+					<Link
+						href="/recipes"
+						className="font-mono text-xs text-fg-mute hover:text-fg"
+					>
+						← recipes
 					</Link>
-					<h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
-					<p className="font-mono text-xs text-zinc-500">
+					<TermHeading level={1} prompt="$" caret>
+						{recipe.name}
+					</TermHeading>
+					<p className="font-mono text-xs text-fg-mute">
 						{recipe.category_id ?? "uncategorised"} · {recipe.meal_type} · {recipe.servings}{" "}
-						{recipe.servings === 1 ? "serving" : "servings"}
+						{recipe.servings === 1 ? "srv" : "srvs"}
 					</p>
 				</div>
 				<Link
 					href={`/recipes/${recipe.slug}/edit`}
-					className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500"
+					className="inline-flex min-h-[40px] items-center rounded-sm border border-grid bg-bg-sunk px-3 py-1.5 font-mono text-xs text-fg-dim hover:border-fg-mute hover:text-fg"
 				>
-					Edit →
+					edit ↗
 				</Link>
 			</header>
 
-			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+			<Surface aria-label="Estimated cost" className="p-4">
 				<div className="flex items-baseline justify-between">
-					<h2 className="text-sm font-medium text-zinc-300">Estimated cost</h2>
+					<TermHeading level={2} prompt="€">
+						estimated cost
+					</TermHeading>
 					{cost.hasUnknown ? (
-						<span className="font-mono text-[10px] uppercase tracking-wider text-amber-400">
+						<span className="font-mono text-[10px] uppercase tracking-widest text-amber">
 							some prices missing
 						</span>
 					) : null}
 				</div>
-				<p className="mt-2 font-mono text-2xl text-emerald-300">
+				<p className="mt-2 font-mono text-2xl text-accent">
 					{cost.total.toFixed(2)} {cost.currency}
 				</p>
-				<p className="font-mono text-xs text-zinc-500">
-					≈ {perServing.toFixed(2)} {cost.currency} / serving
+				<p className="font-mono text-xs text-fg-mute">
+					≈ {perServing.toFixed(2)} {cost.currency} / srv
 				</p>
 				{defaultLinesCost > 0 ? (
-					<p className="mt-2 font-mono text-[11px] text-amber-300/90">
-						Between {costMin.toFixed(2)} and {costMax.toFixed(2)} {cost.currency} — {defaultShare}%
-						of this recipe still uses default Lidl 2026 estimates (±
-						{Math.round(DEFAULT_PRICE_VARIANCE * 100)}% assumed).
+					<p className="mt-2 font-mono text-[11px] text-amber">
+						between {costMin.toFixed(2)} and {costMax.toFixed(2)} {cost.currency} — {defaultShare}%
+						still uses default Lidl 2026 estimates (±{Math.round(DEFAULT_PRICE_VARIANCE * 100)}%
+						assumed).
 					</p>
 				) : (
-					<p className="mt-2 font-mono text-[11px] text-emerald-300/80">
-						All line prices come from real tickets.
+					<p className="mt-2 font-mono text-[11px] text-accent">
+						all line prices come from real tickets.
 					</p>
 				)}
-				<p className="mt-2 font-mono text-[10px] text-zinc-500">
-					Shopping (round up to whole packages): {shoppingCost.total.toFixed(2)}{" "}
+				<p className="mt-2 font-mono text-[10px] text-fg-mute">
+					shopping (round up to whole packages): {shoppingCost.total.toFixed(2)}{" "}
 					{shoppingCost.currency}
 				</p>
-			</section>
+			</Surface>
 
-			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+			<Surface aria-label="Nutrition per serving" className="p-4">
 				<div className="flex items-baseline justify-between">
-					<h2 className="text-sm font-medium text-zinc-300">Nutrition / serving</h2>
+					<TermHeading level={2} prompt="μ">
+						nutrition / srv
+					</TermHeading>
 					{nutrition.missing ? (
-						<span className="font-mono text-[10px] uppercase tracking-wider text-amber-400">
+						<span className="font-mono text-[10px] uppercase tracking-widest text-amber">
 							partial — some ingredients missing data
 						</span>
 					) : null}
 				</div>
-				<p className="mt-2 font-mono text-2xl text-sky-300">{nutrition.perServing.kcal} kcal</p>
-				<dl className="mt-2 grid grid-cols-4 gap-2 font-mono text-xs text-zinc-400">
+				<p className="mt-2 font-mono text-2xl text-cyan">{nutrition.perServing.kcal} kcal</p>
+				<dl className="mt-2 grid grid-cols-4 gap-2 font-mono text-xs text-fg-dim">
 					<div>
-						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Protein</dt>
+						<dt className="text-[10px] uppercase tracking-widest text-fg-mute">protein</dt>
 						<dd>{nutrition.perServing.protein} g</dd>
 					</div>
 					<div>
-						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Carbs</dt>
+						<dt className="text-[10px] uppercase tracking-widest text-fg-mute">carbs</dt>
 						<dd>{nutrition.perServing.carbs} g</dd>
 					</div>
 					<div>
-						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Fat</dt>
+						<dt className="text-[10px] uppercase tracking-widest text-fg-mute">fat</dt>
 						<dd>{nutrition.perServing.fat} g</dd>
 					</div>
 					<div>
-						<dt className="text-[10px] uppercase tracking-wider text-zinc-500">Fibre</dt>
+						<dt className="text-[10px] uppercase tracking-widest text-fg-mute">fibre</dt>
 						<dd>{nutrition.perServing.fiber} g</dd>
 					</div>
 				</dl>
-				<p className="mt-2 font-mono text-[10px] text-zinc-600">
-					Batch total: {nutrition.total.kcal} kcal · {nutrition.total.protein} g P ·{" "}
+				<p className="mt-2 font-mono text-[10px] text-fg-mute">
+					batch total: {nutrition.total.kcal} kcal · {nutrition.total.protein} g P ·{" "}
 					{nutrition.total.carbs} g C · {nutrition.total.fat} g F
 				</p>
-			</section>
+			</Surface>
 
-			<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-				<div className="flex items-baseline justify-between">
-					<h2 className="text-sm font-medium text-zinc-300">Day projection vs goal</h2>
+			<Surface aria-label="Day projection vs goal" className="p-4">
+				<div className="flex flex-wrap items-baseline justify-between gap-2">
+					<TermHeading level={2} prompt="Δ">
+						day projection vs goal
+					</TermHeading>
 					<div className="flex gap-1 font-mono text-[10px]">
 						{GOALS.map((g) => {
 							const active = g === goal;
@@ -374,10 +387,10 @@ export default async function RecipeDetailPage({
 								<Link
 									key={g}
 									href={`/recipes/${recipe.slug}?goal=${g}`}
-									className={`rounded-md border px-2 py-0.5 ${
+									className={`inline-flex min-h-[28px] items-center rounded-sm border px-2 py-0.5 ${
 										active
-											? "border-sky-600 bg-sky-600/20 text-sky-200"
-											: "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+											? "border-cyan/60 bg-cyan/10 text-cyan"
+											: "border-grid text-fg-dim hover:border-fg-mute"
 									}`}
 								>
 									{GOAL_LABEL[g]}
@@ -386,10 +399,10 @@ export default async function RecipeDetailPage({
 						})}
 					</div>
 				</div>
-				<p className="mt-1 font-mono text-[10px] text-zinc-600">
-					Stacked bar = breakfast (always) + this recipe (highlighted) + average other recipe (proxy
-					for the third meal). Target: {target.kcal} kcal · {target.protein} g P · {target.carbs} g
-					C · {target.fat} g F.
+				<p className="mt-1 font-mono text-[10px] text-fg-mute">
+					stacked = breakfast (always) + this recipe (highlighted) + avg other recipe (proxy for the
+					third meal). target: {target.kcal} kcal · {target.protein} g P · {target.carbs} g C ·{" "}
+					{target.fat} g F.
 				</p>
 				<div className="mt-3 space-y-3">
 					{macroRows.map((row) => {
@@ -399,56 +412,52 @@ export default async function RecipeDetailPage({
 						const otherPct = Math.min(100 - breakfastPct - thisPct, pct(row.o, row.tgt));
 						const over = dayPct > 110;
 						const under = dayPct < 85;
-						const statusColor = over
-							? "text-amber-400"
-							: under
-								? "text-zinc-500"
-								: "text-emerald-300";
+						const statusColor = over ? "text-magenta" : under ? "text-fg-mute" : "text-accent";
 						return (
 							<div key={row.key} className="space-y-1">
-								<div className="flex justify-between font-mono text-xs text-zinc-400">
+								<div className="flex justify-between font-mono text-xs text-fg-dim">
 									<span>{row.label}</span>
 									<span>
 										{Math.round(row.day)} / {row.tgt} {row.unit} ·{" "}
 										<span className={statusColor}>{dayPct}%</span>
 									</span>
 								</div>
-								<div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+								<div className="flex h-2 w-full overflow-hidden rounded-sm bg-bg-sunk">
 									<div
-										className="h-full bg-zinc-600"
+										className="h-full bg-fg-mute/40"
 										style={{ width: `${breakfastPct}%` }}
 										title={`Breakfast: ${Math.round(row.b)} ${row.unit}`}
 									/>
 									<div
-										className={`h-full ${isBreakfast ? "bg-zinc-600" : "bg-sky-500"}`}
+										className={`h-full ${isBreakfast ? "bg-fg-mute/40" : "bg-cyan"}`}
 										style={{ width: `${thisPct}%` }}
 										title={`This recipe: ${Math.round(row.t)} ${row.unit}`}
 									/>
 									<div
-										className="h-full bg-zinc-700"
+										className="h-full bg-fg-mute/20"
 										style={{ width: `${otherPct}%` }}
 										title={`Avg other: ${Math.round(row.o)} ${row.unit}`}
 									/>
 								</div>
-								<div className="flex justify-between font-mono text-[10px] text-zinc-600">
-									<span>
-										☕ {Math.round(row.b)} +{" "}
-										<span className={isBreakfast ? "text-zinc-400" : "text-sky-300"}>
-											{isBreakfast ? "(breakfast above)" : `🍽 ${Math.round(row.t)}`}
-										</span>{" "}
-										+ avg {Math.round(row.o)} {row.unit}
-									</span>
+								<div className="font-mono text-[10px] text-fg-mute">
+									breakfast {Math.round(row.b)} +{" "}
+									<span className={isBreakfast ? "text-fg-dim" : "text-cyan"}>
+										{isBreakfast ? "(breakfast above)" : `this ${Math.round(row.t)}`}
+									</span>{" "}
+									+ avg {Math.round(row.o)} {row.unit}
 								</div>
 							</div>
 						);
 					})}
 				</div>
-			</section>
+			</Surface>
 
 			{Object.keys(nutrition.perServingMicros).length > 0 ? (
-				<section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-					<h2 className="text-sm font-medium text-zinc-300">Micronutrients / serving</h2>
-					<p className="mt-1 font-mono text-[10px] text-zinc-600">
+				<Surface aria-label="Micronutrients per serving" className="p-4">
+					<TermHeading level={2} prompt="μ">
+						micros / srv
+					</TermHeading>
+					<p className="mt-1 font-mono text-[10px] text-fg-mute">
 						% of EU adult Reference Daily Allowance (NRV).
 					</p>
 					<dl className="mt-3 space-y-2">
@@ -460,16 +469,16 @@ export default async function RecipeDetailPage({
 							const over = key === "sodium_mg" && pct > 100;
 							return (
 								<div key={key} className="space-y-1">
-									<div className="flex justify-between font-mono text-xs text-zinc-400">
+									<div className="flex justify-between font-mono text-xs text-fg-dim">
 										<span>{entry.label}</span>
 										<span>
 											{value} {entry.unit} ·{" "}
-											<span className={over ? "text-amber-400" : "text-zinc-300"}>{pct}%</span>
+											<span className={over ? "text-magenta" : "text-fg"}>{pct}%</span>
 										</span>
 									</div>
-									<div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+									<div className="h-1.5 w-full overflow-hidden rounded-sm bg-bg-sunk">
 										<div
-											className={`h-full rounded-full ${over ? "bg-amber-500" : "bg-sky-500"}`}
+											className={`h-full ${over ? "bg-magenta" : "bg-cyan"}`}
 											style={{ width: `${clamped}%` }}
 										/>
 									</div>
@@ -477,7 +486,7 @@ export default async function RecipeDetailPage({
 							);
 						})}
 					</dl>
-				</section>
+				</Surface>
 			) : null}
 
 			<GoalQuantitiesEditor
@@ -497,12 +506,14 @@ export default async function RecipeDetailPage({
 			/>
 
 			<section>
-				<h2 className="mb-2 text-sm font-medium text-zinc-300">Ingredients</h2>
-				<p className="mb-2 font-mono text-[10px] text-zinc-600">
-					Per-line numbers are computed for the quantity used in this recipe (whole batch, not per
-					serving). Hover the price badge to see the source.
+				<TermHeading level={2} prompt="▣">
+					ingredients
+				</TermHeading>
+				<p className="mb-2 mt-1 font-mono text-[10px] text-fg-mute">
+					per-line numbers are computed for the quantity used in this recipe (whole batch, not per
+					serving). hover the price badge to see the source.
 				</p>
-				<ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+				<ul className="divide-y divide-grid rounded-sm border border-grid bg-bg-elev">
 					{lines.map((l, idx) => {
 						const lineCost = cost.lines[idx];
 						const ing = l.ingredients;
@@ -530,29 +541,44 @@ export default async function RecipeDetailPage({
 							!isDef && def != null && real != null && def !== 0
 								? `${(((real - def) / def) * 100).toFixed(0)}% vs default`
 								: null;
+						const roleGlyph =
+							l.role === "hero" ? "◆" : l.role === "fixed" ? "▣" : l.role === "side" ? "◇" : "·";
+						const roleColor =
+							l.role === "hero"
+								? "text-accent"
+								: l.role === "fixed"
+									? "text-amber"
+									: "text-fg-mute";
 						return (
 							<li
 								key={`${ing?.id ?? "?"}-${idx}`}
 								className="flex flex-col gap-1 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
 							>
 								<div className="min-w-0 flex-1">
-									<p className="text-zinc-100">{ing?.name ?? "(missing ingredient)"}</p>
-									{l.notes ? <p className="text-xs text-zinc-500">{l.notes}</p> : null}
+									<p className="font-mono text-fg">
+										<span aria-hidden className={`mr-1 ${roleColor}`}>
+											{roleGlyph}
+										</span>
+										{ing?.name ?? "(missing ingredient)"}
+									</p>
+									{l.notes ? (
+										<p className="font-mono text-xs text-fg-mute">{l.notes}</p>
+									) : null}
 									{lineMacros ? (
-										<p className="mt-1 font-mono text-[10px] text-zinc-500">
+										<p className="mt-1 font-mono text-[10px] text-fg-mute">
 											{Math.round(lineMacros.kcal)} kcal · {lineMacros.protein.toFixed(1)} P ·{" "}
 											{lineMacros.carbs.toFixed(1)} C · {lineMacros.fat.toFixed(1)} F
 										</p>
 									) : (
-										<p className="mt-1 font-mono text-[10px] text-zinc-600">no nutrition data</p>
+										<p className="mt-1 font-mono text-[10px] text-fg-mute">no nutrition data</p>
 									)}
 								</div>
 								<div className="flex items-center gap-3 text-right">
-									<span className="font-mono text-xs text-zinc-400">
+									<span className="font-mono text-xs text-fg-dim">
 										{l.quantity} {l.unit}
 									</span>
 									<span className="flex items-center justify-end gap-1.5 font-mono text-xs">
-										<span className="w-20 text-zinc-300">
+										<span className="w-20 text-fg">
 											{lineCost.cost != null
 												? `${lineCost.cost.toFixed(2)} ${lineCost.currency}`
 												: lineCost.reason === "no_price"
@@ -563,14 +589,14 @@ export default async function RecipeDetailPage({
 											isDef ? (
 												<span
 													title="Lidl Prague 2026 estimate — not from a real receipt yet"
-													className="rounded border border-amber-700 bg-amber-900/30 px-1 py-0.5 text-[9px] uppercase tracking-wider text-amber-300"
+													className="rounded-sm border border-amber/40 bg-amber/10 px-1 py-0.5 font-mono text-[9px] uppercase tracking-widest text-amber"
 												>
 													def
 												</span>
 											) : (
 												<span
 													title={priceDelta ? `Real price · ${priceDelta}` : "Real price"}
-													className="rounded border border-emerald-700 bg-emerald-900/30 px-1 py-0.5 text-[9px] uppercase tracking-wider text-emerald-300"
+													className="rounded-sm border border-accent/40 bg-accent/10 px-1 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent"
 												>
 													real
 												</span>
@@ -586,8 +612,10 @@ export default async function RecipeDetailPage({
 
 			{recipe.instructions_md ? (
 				<section>
-					<h2 className="mb-2 text-sm font-medium text-zinc-300">Instructions</h2>
-					<pre className="whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-300">
+					<TermHeading level={2} prompt="›">
+						instructions
+					</TermHeading>
+					<pre className="mt-2 whitespace-pre-wrap rounded-sm border border-grid bg-bg-elev p-4 font-mono text-sm text-fg-dim">
 						{recipe.instructions_md}
 					</pre>
 				</section>

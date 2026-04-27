@@ -1,3 +1,4 @@
+import { TermHeading } from "@/components/ui/term-heading";
 import { createClient } from "@/lib/db/client-server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -62,15 +63,17 @@ export default async function EditRecipePage({
 	};
 
 	return (
-		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
+		<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10 sm:gap-6">
 			<header className="space-y-1">
 				<Link
 					href={`/recipes/${recipe.slug}`}
-					className="text-xs text-zinc-500 hover:text-zinc-300"
+					className="font-mono text-xs text-fg-mute hover:text-fg"
 				>
 					← {recipe.name}
 				</Link>
-				<h1 className="text-2xl font-semibold tracking-tight">Edit · {recipe.name}</h1>
+				<TermHeading level={1} prompt="~" caret>
+					edit · {recipe.name}
+				</TermHeading>
 			</header>
 			<RecipeForm mode="edit" options={opts ?? []} initial={initial} />
 		</main>

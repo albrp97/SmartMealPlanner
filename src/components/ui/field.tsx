@@ -2,14 +2,14 @@ import { cn } from "@/lib/cn";
 import type * as React from "react";
 
 const fieldBase = cn(
-	"w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100",
-	"outline-none transition-colors placeholder:text-zinc-600",
-	"focus:border-zinc-500 focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
+	"w-full rounded-sm border border-grid bg-bg-sunk px-3 font-mono text-base text-fg",
+	"outline-none transition-colors placeholder:text-fg-mute",
+	"focus:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
 	"disabled:opacity-50",
 );
 
 export const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-	<input className={cn(fieldBase, "h-9 py-1.5", className)} {...props} />
+	<input className={cn(fieldBase, "min-h-[40px] py-1.5", className)} {...props} />
 );
 
 export const Textarea = ({
@@ -20,14 +20,14 @@ export const Textarea = ({
 );
 
 export const Select = ({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-	<select className={cn(fieldBase, "h-9 py-1.5 pr-8", className)} {...props} />
+	<select className={cn(fieldBase, "min-h-[40px] py-1.5 pr-8", className)} {...props} />
 );
 
 export const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
 	// biome-ignore lint/a11y/noLabelWithoutControl: generic primitive; callers wrap or provide htmlFor.
 	<label
 		className={cn(
-			"block text-[11px] font-medium uppercase tracking-wider text-zinc-400",
+			"block font-mono text-[11px] uppercase tracking-widest text-fg-dim",
 			className,
 		)}
 		{...props}
@@ -36,7 +36,7 @@ export const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
 
 export function FieldError({ children }: { children?: React.ReactNode }) {
 	if (!children) return null;
-	return <p className="mt-1 text-xs text-red-400">{children}</p>;
+	return <p className="mt-1 font-mono text-xs text-rose">{children}</p>;
 }
 
 interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -51,10 +51,12 @@ export function FormField({ label, hint, error, required, className, ...props }:
 		<div className={cn("space-y-1", className)}>
 			<Label htmlFor={props.name}>
 				{label}
-				{required ? <span className="text-red-400"> *</span> : null}
+				{required ? <span className="text-rose"> *</span> : null}
 			</Label>
 			<Input id={props.name} required={required} {...props} />
-			{hint && !error ? <p className="text-[11px] text-zinc-500">{hint}</p> : null}
+			{hint && !error ? (
+				<p className="font-mono text-[11px] text-fg-mute">{hint}</p>
+			) : null}
 			<FieldError>{error}</FieldError>
 		</div>
 	);
