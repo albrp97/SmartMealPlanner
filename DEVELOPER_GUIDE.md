@@ -434,7 +434,7 @@ below. The remaining work is finishing scope, not expanding it.
 |---|---|---|
 | 7.1 | Recommendation panel under planner | **[done]** (3.9) |
 | 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
-| 7.3 | Daily micronutrient roll-up on `/plan` | **[next]** |
+| 7.3 | Daily micronutrient roll-up on `/plan` | **[done]** (3.12) |
 | 7.4 | Recipe baseline audit (all ~20 recipes) | **[next]** |
 | 7.5 | Investigate "puff pastry shows 0.0 unit" rendering bug | **[next]** |
 | 7.6 | UI rework pass | **[next]** |
@@ -515,13 +515,27 @@ On the smoke plan (`chicken_risotto` + `chicken_pie`) this lands at
 keeps the picker wiring local, the other keeps data-fetch + nutrition in
 one place). Any further plan-page refactor folds into §7.6.
 
-### 7.3 Daily micronutrient roll-up on `/plan` **[next]**
+### 7.3 Daily micronutrient roll-up on `/plan` **[done — Phase 3.12]**
 
-The per-recipe page already shows micros against EU NRV via
-[`src/lib/rda.ts`](src/lib/rda.ts). Bring the same roll-up to `/plan`:
-sum micros across breakfast + lunch + dinner (per-day), render an RDA
-bar grid below the macro card. Reuse the existing RDA bar component;
-no new math beyond per-day aggregation.
+[`src/app/plan/_components/day-micro-rollup.tsx`](src/app/plan/_components/day-micro-rollup.tsx)
+renders the same RDA bar pattern as the per-recipe page but fed from a
+daily total: `breakfast.perServingMicros + lunch_ps + dinner_ps`. The
+section is hidden when no ingredient in the day has any micro data
+(graceful degradation for the sparse OpenFoodFacts seed).
+
+Wiring in [`src/app/plan/page.tsx`](src/app/plan/page.tsx):
+
+- Added `micros_per_100g` to the recipe SELECT and the `RecipeRow` type.
+- `recipeToNutrition` now passes `microsPer100g` through.
+- `applyEntry` calls `computeRecipeNutrition(lines, scaled.servings)` so
+  it can emit `perServingMicros` (the macro flow already used
+  `nut.total.*` so passing the real serving count doesn't change it).
+- A second map `microsPerServing` keeps breakfast's PS micros.
+- The day total averages micros across the (usually one) lunch + dinner
+  entries so multi-cook days still produce a single per-day number.
+
+Sodium uses the WHO upper-limit colouring (amber over 2300 mg) inherited
+from the per-recipe page.
 
 ### 7.4 Recipe baseline audit **[next]**
 

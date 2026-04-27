@@ -31,6 +31,7 @@ import { applyGoalOverrides, buildOverrideMap } from "@/lib/recipe-overrides";
 import { recommend } from "@/lib/recommend";
 import Link from "next/link";
 import { DayMacroCard } from "./_components/day-macro-card";
+import { DayMicroRollup, type Micros } from "./_components/day-micro-rollup";
 import { ShoppingList } from "./_components/shopping-list";
 import { PLAN_DATE } from "./constants";
 import { AddPlanEntry, type PickerRecipe, PlanEntryRow } from "./controls";
@@ -59,6 +60,7 @@ interface RecipeRow extends PlanRecipeRow {
 					carbs_per_100g: number | null;
 					fat_per_100g: number | null;
 					fiber_per_100g: number | null;
+					micros_per_100g: Record<string, number> | null;
 					package_price: number | null;
 					default_package_price: number | null;
 					price_is_default: boolean;
@@ -69,7 +71,7 @@ interface RecipeRow extends PlanRecipeRow {
 }
 
 const SELECT_RECIPE =
-	"id, slug, name, servings, meal_type, category_id, recipe_ingredients(id, quantity, unit, role, ingredients(id, slug, name, is_supplement, divisible, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, package_size, package_unit, package_price, default_package_price, price_is_default, currency))";
+	"id, slug, name, servings, meal_type, category_id, recipe_ingredients(id, quantity, unit, role, ingredients(id, slug, name, is_supplement, divisible, g_per_unit, density_g_per_ml, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, micros_per_100g, package_size, package_unit, package_price, default_package_price, price_is_default, currency))";
 
 function recipeToNutrition(r: RecipeRow): NutritionLineInput[] {
 	const out: NutritionLineInput[] = [];
@@ -86,6 +88,7 @@ function recipeToNutrition(r: RecipeRow): NutritionLineInput[] {
 				carbsPer100g: ing.carbs_per_100g,
 				fatPer100g: ing.fat_per_100g,
 				fiberPer100g: ing.fiber_per_100g,
+				microsPer100g: ing.micros_per_100g,
 			},
 			quantity: l.quantity,
 			unit: l.unit,
@@ -103,6 +106,8 @@ interface AppliedEntry {
 	totalP: number;
 	totalC: number;
 	totalF: number;
+	/** Per-serving micros after goal scaling. One serving = one day's portion. */
+	perServingMicros: Micros;
 	scaledLines: ScaledIngredient[];
 }
 
@@ -241,8 +246,11 @@ export default async function PlanPage({
 	// only for the picker preview. Per-entry macros below are recomputed
 	// from the goal-scaled lines.
 	const perServing = new Map<string, ReturnType<typeof computeRecipeNutrition>["perServing"]>();
+	const microsPerServing = new Map<string, Micros>();
 	for (const r of recipes) {
-		perServing.set(r.id, computeRecipeNutrition(recipeToNutrition(r), r.servings).perServing);
+		const nut = computeRecipeNutrition(recipeToNutrition(r), r.servings);
+		perServing.set(r.id, nut.perServing);
+		microsPerServing.set(r.id, nut.perServingMicros);
 	}
 
 	// Portion-engine view of every recipe.
@@ -293,14 +301,16 @@ export default async function PlanPage({
 					carbsPer100g: ing?.carbs_per_100g ?? null,
 					fatPer100g: ing?.fat_per_100g ?? null,
 					fiberPer100g: ing?.fiber_per_100g ?? null,
+					microsPer100g: ing?.micros_per_100g ?? null,
 				},
 			};
 		});
-		const nut = computeRecipeNutrition(nutritionLines, 1);
+		const nut = computeRecipeNutrition(nutritionLines, Math.max(1, scaled.servings));
 		const totalKcal = nut.total.kcal;
 		const totalP = nut.total.protein;
 		const totalC = nut.total.carbs;
 		const totalF = nut.total.fat;
+		const perServingMicros: Micros = nut.perServingMicros;
 
 		const scaledLines: ScaledIngredient[] = scaled.scaled.map((sl) => ({
 			name: sl.ingredientName,
@@ -318,6 +328,7 @@ export default async function PlanPage({
 			totalP,
 			totalC,
 			totalF,
+			perServingMicros,
 			scaledLines,
 		};
 	}
@@ -361,6 +372,34 @@ export default async function PlanPage({
 		(breakfastPS?.fat ?? 0) +
 		(lunchT.days ? lunchT.fat / lunchT.days : 0) +
 		(dinnerT.days ? dinnerT.fat / dinnerT.days : 0);
+
+	// Daily micronutrient roll-up. The user eats one serving of each cook
+	// per day, so day total = breakfast PS + first lunch PS + first
+	// dinner PS. If a slot has multiple entries we average their PS micros
+	// (uncommon — normally one cook per slot). Sparse keys are preserved.
+	const breakfastMicrosPS: Micros = breakfast ? (microsPerServing.get(breakfast.id) ?? {}) : {};
+	function averagePS(applied: AppliedEntry[]): Micros {
+		if (applied.length === 0) return {};
+		const sum: Micros = {};
+		for (const a of applied) {
+			for (const [k, v] of Object.entries(a.perServingMicros)) {
+				if (v == null) continue;
+				sum[k] = (sum[k] ?? 0) + v;
+			}
+		}
+		const avg: Micros = {};
+		for (const [k, v] of Object.entries(sum)) avg[k] = (v ?? 0) / applied.length;
+		return avg;
+	}
+	const lunchMicrosPS = averagePS(lunchApplied);
+	const dinnerMicrosPS = averagePS(dinnerApplied);
+	const dayMicros: Micros = {};
+	for (const src of [breakfastMicrosPS, lunchMicrosPS, dinnerMicrosPS]) {
+		for (const [k, v] of Object.entries(src)) {
+			if (v == null) continue;
+			dayMicros[k] = (dayMicros[k] ?? 0) + v;
+		}
+	}
 
 	// Shopping list — built from scaled lines.
 	const packageMeta = new Map<
@@ -566,6 +605,8 @@ export default async function PlanPage({
 				totals={{ kcal: dayKcal, protein: dayProtein, carbs: dayCarbs, fat: dayFat }}
 				target={target}
 			/>
+
+			<DayMicroRollup micros={dayMicros} />
 
 			<div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
 				<div className="space-y-6">
