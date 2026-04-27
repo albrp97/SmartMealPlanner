@@ -15,6 +15,18 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { addPlanEntry, deletePlanEntry, updatePacks, updateRecipe } from "./actions";
 
+/**
+ * Render a recipe-line quantity. Whole numbers print without a decimal
+ * tail (so non-divisible `unit` lines show "2 unit", not "2.0 unit");
+ * fractional quantities round to one decimal. Callers are expected to
+ * have already filtered out zero-quantity lines — this never returns "0".
+ */
+function formatQty(q: number): string {
+	if (!Number.isFinite(q)) return "—";
+	const rounded = Math.round(q * 10) / 10;
+	return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 export interface PickerRecipe {
 	id: string;
 	name: string;
@@ -261,7 +273,9 @@ export function PlanEntryRow({
 						</Link>
 					</div>
 					<ul className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-						{scaledLines.map((sl) => (
+						{scaledLines
+							.filter((sl) => sl.quantity > 0)
+							.map((sl) => (
 							<li
 								key={sl.name}
 								className="flex items-baseline justify-between gap-2 font-mono text-[11px]"
@@ -279,7 +293,7 @@ export function PlanEntryRow({
 									{sl.name}
 								</span>
 								<span className="text-zinc-400">
-									{sl.quantity.toFixed(sl.unit === "unit" ? 1 : 0)} {sl.unit}
+									{formatQty(sl.quantity)} {sl.unit}
 								</span>
 							</li>
 						))}

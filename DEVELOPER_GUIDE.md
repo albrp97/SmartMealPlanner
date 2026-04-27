@@ -436,7 +436,7 @@ below. The remaining work is finishing scope, not expanding it.
 | 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
 | 7.3 | Daily micronutrient roll-up on `/plan` | **[done]** (3.12) |
 | 7.4 | Recipe baseline audit (all ~20 recipes) | **[done]** (3.13) |
-| 7.5 | Investigate "puff pastry shows 0.0 unit" rendering bug | **[next]** |
+| 7.5 | Investigate "puff pastry shows 0.0 unit" rendering bug | **[done]** (3.14) |
 | 7.6 | UI rework pass | **[next]** |
 | 7.7 | Deployment / architecture final touches | **[next]** |
 | 7.8 | Things explicitly NOT building (LLM/OCR + dropped features) | locked |
@@ -568,22 +568,38 @@ intentionally not scale.
 Verified: `pnpm typecheck` green, 90/90 unit + smoke pass, post-patch
 audit shows no fractional ND fixed lines remain in any recipe.
 
-### 7.5 Investigate "puff pastry shows 0.0 unit" **[next]**
+### 7.5 "Puff pastry shows 0.0 unit" **[done — Phase 3.14]**
 
-Reported during 3.10.1 testing: a UI render showed a puff pastry side
-line as `0.0 unit`. After the fixed-line bucketing fix in 3.10.1 this
-is likely already gone, but it was never reproduced and verified
-post-fix. Steps:
+Root cause was twofold, both in the per-entry ingredient list rendered by
+[`controls.tsx`](src/app/plan/controls.tsx) `PlanEntryRow`:
 
-1. Plan `chicken_pie` on `/plan` at all three goals.
-2. Look for any line that renders `0.0 unit` or a fractional non-divisible
-   unit count.
-3. If still present: inspect `scalePortion` rounding for non-divisible
-   side lines measured in `unit`, and the JSX in
-   [`controls.tsx`](src/app/plan/controls.tsx) `PlanEntryRow`.
+1. The formatter was hard-coded as
+   `sl.quantity.toFixed(sl.unit === "unit" ? 1 : 0)`. Any `unit`-typed
+   ingredient — including non-divisible ones whose scaled quantity is
+   already an integer — printed with a `.0` tail (e.g. `2.0 unit
+   puff_pastry`). Cosmetically wrong even when the value was correct.
+2. When an entry was infeasible (computed `servings === 0` — no hero
+   packs picked yet, or hero metadata missing), `portion.ts` emitted
+   every scaled line at `quantity: 0`. Combined with (1) the row would
+   render `0.0 unit puff_pastry`, looking like the planner was telling
+   the user to cook with zero pastry.
 
-If the bug is gone, close the item with a smoke screenshot in the
-commit body.
+Fix in `controls.tsx`:
+
+- New `formatQty(q)` helper: rounds to 1 decimal then strips trailing
+  `.0` so integers print as `2`, fractions as `1.5`. Returns `"—"` for
+  non-finite values.
+- The scaled-lines list now `.filter(sl => sl.quantity > 0)` before
+  rendering. A zero-quantity line is never useful to a cook; if a recipe
+  scales so far down that a non-divisible side rounds to 0, the line is
+  hidden rather than shown as `0.0 unit`.
+
+The underlying rounding in [`portion.ts`](src/lib/portion.ts)
+`needsWholeUnits` (non-divisible + `unit` → `Math.max(0, Math.round(raw))`)
+is left as-is — it's correct (you can't cook 0.4 of a puff pastry sheet);
+it just shouldn't surface as a "0.0 unit" UI artefact.
+
+Verified: `pnpm typecheck` clean, 90/90 unit + smoke green.
 
 ### 7.6 UI rework pass **[next]**
 
