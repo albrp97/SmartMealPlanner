@@ -16,10 +16,12 @@
  * Hero and fixed lines are NEVER scaled (hero is set by hero packs;
  * fixed = 1 onion / 1 stock cube). Only side lines participate.
  *
- * Each scalar is clamped to [0.25, 4.0] so a wildly mismatched plan
- * doesn't produce absurd quantities. If the linear system is singular
- * (e.g. no fat-source side line in the whole plan) we fall back to a
- * single-kcal scalar.
+ * Each scalar is clamped to [0.7, 1.3] so adjustments stay realistic
+ * (±30 % ≈ "a touch more pasta", not "triple the rice"). Goal-level
+ * coarse tuning lives in `recipe_ingredient_overrides` (cut/maintain/
+ * bulk variants of each recipe); the auto-balancer is the fine knob
+ * on top of that. If the linear system is singular (e.g. no fat-source
+ * side line in the whole plan) we fall back to a single-kcal scalar.
  */
 import type { NutritionIngredient } from "@/lib/nutrition";
 import { type CookUnit, toGrams } from "@/lib/units";
@@ -58,8 +60,8 @@ export interface BalanceResult {
 	fallback: boolean;
 }
 
-const MIN_SCALE = 0;
-const MAX_SCALE = 4.0;
+const MIN_SCALE = 0.7;
+const MAX_SCALE = 1.3;
 /**
  * Aim slightly under the kcal target so the resulting plan lands in the
  * 90–100 % band (the user's preferred range — better to be a touch
@@ -156,10 +158,9 @@ export function computeMacroScales(input: BalanceInput): BalanceResult {
 			// Fixed lines (1 onion, 2 puff pastries, breakfast olive oil) are
 			// NEVER scaled by the planner — see DEVELOPER_GUIDE §4.2. Bucket
 			// them into nonScalable so the balancer's prediction matches what
-			// actually happens at render time. Heroes ARE scaled (clamped
-			// downstream by heroFactor 0.5–1.75) and sides are scaled by the
-			// class scalar; both go into classDaily.
-			if (line.role === "fixed") {
+			// actually happens at render time. Heroes are also untouchable
+			// (1 pack = use the whole pack); only sides are class-scaled.
+			if (line.role === "fixed" || line.role === "hero") {
 				nonScalable = add(nonScalable, perDay);
 				continue;
 			}

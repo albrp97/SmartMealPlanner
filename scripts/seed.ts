@@ -39,6 +39,9 @@ interface SeedRecipeIngredient {
 	supplement?: boolean;
 	brand?: string;
 	note?: string;
+	/** Optional per-goal overrides. quantity=0 drops the line at that goal. */
+	cut?: number;
+	bulk?: number;
 }
 interface SeedRecipe {
 	id: string;
@@ -229,6 +232,67 @@ async function main() {
 		if (rows.length > 0) {
 			const { error } = await supabase.from("recipe_ingredients").insert(rows);
 			if (error) throw error;
+		}
+	}
+
+	console.log("→ Recipe ingredient overrides (cut / bulk)");
+	// After all recipe_ingredients are inserted, refetch them with their
+	// generated ids and apply any cut/bulk overrides declared in the seed
+	// file. This is intentionally a separate pass so the override insert
+	// can use the recipe_ingredient_id (which only exists after insert).
+	{
+		const { data: ris, error } = await supabase
+			.from("recipe_ingredients")
+			.select("id, recipe_id, ingredient_id");
+		if (error) throw error;
+		const keyToRiId = new Map<string, string>();
+		for (const ri of ris ?? []) keyToRiId.set(`${ri.recipe_id}:${ri.ingredient_id}`, ri.id);
+
+		const overrideRows: { recipe_ingredient_id: string; goal: "cut" | "bulk"; quantity: number }[] =
+			[];
+		for (const r of recipesFile.recipes) {
+			const recipeId = slugToRecId.get(r.id);
+			if (!recipeId) continue;
+			for (const ing of r.ingredients) {
+				const slug = slugify(ing.name);
+				const ingredientId = slugToIngId.get(slug);
+				if (!ingredientId) continue;
+				const riId = keyToRiId.get(`${recipeId}:${ingredientId}`);
+				if (!riId) continue;
+				if (typeof ing.cut === "number") {
+					overrideRows.push({
+						recipe_ingredient_id: riId,
+						goal: "cut",
+						quantity: ing.cut,
+					});
+				}
+				if (typeof ing.bulk === "number") {
+					overrideRows.push({
+						recipe_ingredient_id: riId,
+						goal: "bulk",
+						quantity: ing.bulk,
+					});
+				}
+			}
+		}
+		// Wipe any prior seed-driven overrides for these recipe_ingredients
+		// before reinserting (idempotent re-run). Hand-edited overrides for
+		// rows NOT in this seed file are left alone.
+		const riIds = Array.from(
+			new Set(overrideRows.map((o) => o.recipe_ingredient_id)),
+		);
+		if (riIds.length > 0) {
+			await supabase
+				.from("recipe_ingredient_overrides")
+				.delete()
+				.in("recipe_ingredient_id", riIds);
+		}
+		if (overrideRows.length > 0) {
+			const { error: ovErr } = await supabase
+				.from("recipe_ingredient_overrides")
+				.insert(overrideRows);
+			if (ovErr) throw ovErr;
+			console.log(`  · ${overrideRows.length} override row(s) inserted`);
 		}
 	}
 

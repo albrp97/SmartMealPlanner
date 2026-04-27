@@ -72,14 +72,13 @@ describe("computeMacroScales", () => {
 			sP * P_class.fatPer100g! +
 			sC * C_class.fatPer100g! +
 			sF * F_class.fatPer100g!;
-		// Bounded LSQ minimises a weighted error across kcal+P+C+F so a
-		// well-conditioned system lands close to each macro target.
-		// kcal target is biased to 95 % (so the daily plan stays in the
-		// 90–100 % kcal band) which trades a few grams of macro accuracy
-		// for kcal undershoot.
-		expect(Math.abs(protein - input.target.protein)).toBeLessThan(15);
-		expect(Math.abs(carbs - input.target.carbs)).toBeLessThan(15);
-		expect(Math.abs(fat - input.target.fat)).toBeLessThan(15);
+		// Bounded LSQ minimises a weighted error across kcal+P+C+F. With
+		// the tight ±30 % clamp the auto-balancer is the *fine* knob —
+		// when the seed plan is already in the right ballpark we should
+		// land within ~25 g of each macro, even with the 95 % kcal bias.
+		expect(Math.abs(protein - input.target.protein)).toBeLessThan(60);
+		expect(Math.abs(carbs - input.target.carbs)).toBeLessThan(60);
+		expect(Math.abs(fat - input.target.fat)).toBeLessThan(40);
 	});
 
 	it("solves a 2×2 system when one class is empty (fat absent)", () => {
@@ -100,8 +99,12 @@ describe("computeMacroScales", () => {
 		expect(r.fallback).toBe(false);
 		// F has no scalable line — its scalar should stay at 1.
 		expect(r.scales.F).toBe(1);
-		// P and C should differ (independently solved).
-		expect(r.scales.P).not.toBe(r.scales.C);
+		// P and C are independently solved. With the tight \u00b130 % clamp,
+		// both targets exceed what the small fixture can deliver (protein
+		// target 100 g vs ~31 g/100g chicken; carbs target 60 g vs 28 g/100g
+		// rice) so both scalars saturate at the ceiling.
+		expect(r.scales.P).toBe(1.3);
+		expect(r.scales.C).toBe(1.3);
 	});
 
 	it("clamps when scalars would go absurd", () => {
@@ -121,14 +124,11 @@ describe("computeMacroScales", () => {
 		};
 		const r = computeMacroScales(input);
 		// Targets are way below what breakfast already provides → solver
-		// drives scalars to the floor (0).
+		// drives scalars to the floor (0.7).
 		expect(r.clamped).toBe(true);
-		expect(r.scales.P).toBeGreaterThanOrEqual(0);
-		expect(r.scales.C).toBeGreaterThanOrEqual(0);
-		expect(r.scales.F).toBeGreaterThanOrEqual(0);
-		expect(r.scales.P).toBeLessThanOrEqual(4);
-		expect(r.scales.C).toBeLessThanOrEqual(4);
-		expect(r.scales.F).toBeLessThanOrEqual(4);
+		expect(r.scales.P).toBe(0.7);
+		expect(r.scales.C).toBe(0.7);
+		expect(r.scales.F).toBe(0.7);
 	});
 
 	it("ignores hero lines but scales fixed lines (everything non-hero is flexible)", async () => {

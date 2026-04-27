@@ -261,30 +261,16 @@ export default async function PlanPage({
 	// Cache scalePortion results by entry to reuse for the shopping list.
 	const scaledByEntryId = new Map<string, ReturnType<typeof scalePortion>>();
 
-	// Resolve a recipe's hero macro class (P / C / F) and look up the
-	// matching scalar; used to scale hero quantity in scalePortion via
-	// heroFactor without changing servings. Hero is constrained more
-	// tightly than side ingredients (you can add 50 % more chicken to a
-	// burrito, but tripling it is not a real-world cook).
-	const HERO_FACTOR_MIN = 0.5;
-	const HERO_FACTOR_MAX = 1.75;
-	function heroFactorFor(r: RecipeRow): number {
-		if (r.slug === "breakfast_daily") return 1;
-		const heroLine = r.recipe_ingredients.find((li) => li.role === "hero");
-		if (!heroLine) return 1;
-		const cls = classifyIngredient(ingredientForNutrition(heroLine));
-		if (!cls) return 1;
-		const raw = auto.scales[cls];
-		return Math.min(HERO_FACTOR_MAX, Math.max(HERO_FACTOR_MIN, raw));
-	}
-
+	// Hero quantity is a hard invariant: 1 pack = use the whole pack.
+	// Macro balancing happens via side scalars (computeMacroScales above)
+	// only — hero is never fudged by the auto-balancer.
 	function applyEntry(e: PlanRow): AppliedEntry | null {
 		const r = byId.get(e.recipe_id);
 		const portion = portionByRecipe.get(e.recipe_id);
 		if (!r || !portion) return null;
 		const packs = Math.max(1, e.servings);
 		const heroQty = heroQuantityFromPacks(portion, packs);
-		const scaled = scalePortion(portion, heroQty, heroFactorFor(r));
+		const scaled = scalePortion(portion, heroQty);
 		scaledByEntryId.set(e.id, scaled);
 
 		// Recompute macros directly from the scaled (whole-cook) lines so

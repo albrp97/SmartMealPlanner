@@ -1,12 +1,13 @@
 {
-	"$schema_version": "0.2.0",
+	"$schema_version": "0.3.0",
 	"notes": [
 		"Seed file parsed from the user's original WhatsApp-style message and translated to English.",
 		"All ingredient names, recipe names and categories are in English; slugs are snake_case English.",
 		"Quantities preserved verbatim where possible. Units are normalised to one of g | ml | unit to match the DB schema.",
 		"'completeness' values: 'complete' = all ingredients listed; 'partial' = some ingredients missing; 'empty' = only the name was given, no ingredients.",
 		"'meal_type' values: 'single_meal' = recipe yields ~1 plate as written; 'batch' = recipe is meant to be cooked in a pot/pan and split into several plates; 'unknown' = not explicit in the source.",
-		"'servings_estimated' is a best-guess number of plates the recipe yields; mark 'servings_confirmed': false until the user confirms."
+		"'servings_estimated' is a best-guess number of plates the recipe yields; mark 'servings_confirmed': false until the user confirms.",
+		"Optional 'cut' / 'bulk' numbers on an ingredient row override that line's quantity for the matching goal (recipe_ingredient_overrides table). Hero lines are NEVER overridden — hero is fixed by the user-committed pack count. quantity=0 drops the line at that goal (e.g. cranberries off on cut)."
 	],
 	"categories": [
 		{ "id": "savoury_pie", "name": "Savoury pie" },
@@ -36,10 +37,10 @@
 				"'Hand of X' is a rough portion; treat as ~30 g for nuts and dried fruit until calibrated."
 			],
 			"ingredients": [
-				{ "name": "oatmeal", "quantity": 40, "unit": "g" },
-				{ "name": "cashews", "quantity": 30, "unit": "g", "note": "approx. 1 hand — to be calibrated" },
-				{ "name": "dried sweetened cranberries", "quantity": 30, "unit": "g", "note": "approx. 1 hand — to be calibrated" },
-				{ "name": "jumbo raisins", "quantity": 30, "unit": "g", "note": "approx. 1 hand — to be calibrated" },
+				{ "name": "oatmeal", "quantity": 40, "unit": "g", "cut": 30, "bulk": 60 },
+				{ "name": "cashews", "quantity": 30, "unit": "g", "cut": 20, "bulk": 40, "note": "approx. 1 hand — to be calibrated" },
+				{ "name": "dried sweetened cranberries", "quantity": 30, "unit": "g", "cut": 0, "bulk": 30, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
+				{ "name": "jumbo raisins", "quantity": 30, "unit": "g", "cut": 0, "bulk": 40, "note": "approx. 1 hand — to be calibrated; dropped on cut" },
 				{ "name": "creatine monohydrate (GymBeam)", "quantity": 5, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
 				{ "name": "whey protein (GymBeam)", "quantity": 30, "unit": "g", "note": "1 scoop", "supplement": true, "brand": "GymBeam" },
 				{ "name": "yogurt 3.9% fat", "quantity": 130, "unit": "g" },
@@ -82,8 +83,8 @@
 			"ingredients": [
 				{ "name": "puff pastry", "quantity": 2, "unit": "unit" },
 				{ "name": "onion", "quantity": 2, "unit": "unit" },
-				{ "name": "chicken", "quantity": 500, "unit": "g" },
-				{ "name": "cream", "quantity": 200, "unit": "ml", "note": "1 small carton" },
+				{ "name": "chicken", "quantity": 400, "unit": "g" },
+				{ "name": "cream", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
 				{ "name": "mushrooms", "quantity": 1, "unit": "unit", "note": "quantity not specified" }
 			]
 		},
@@ -113,7 +114,7 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "noodles", "quantity": 125, "unit": "g" },
+				{ "name": "noodles", "quantity": 150, "unit": "g", "cut": 110, "bulk": 200 },
 				{ "name": "cabbage", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
 				{ "name": "bell pepper", "quantity": 0.3333333, "unit": "unit" },
 				{ "name": "onion", "quantity": 0.5, "unit": "unit" },
@@ -130,7 +131,7 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 80, "unit": "g" },
+				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
 				{ "name": "chicken", "quantity": 100, "unit": "g" },
 				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" },
 				{ "name": "beer", "quantity": 1, "unit": "unit" },
@@ -147,7 +148,7 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 80, "unit": "g" },
+				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
 				{ "name": "chicken", "quantity": 100, "unit": "g" },
 				{ "name": "carrot", "quantity": 1, "unit": "unit" },
 				{ "name": "onion", "quantity": 0.5, "unit": "unit" },
@@ -168,7 +169,7 @@
 			"ingredients": [
 				{ "name": "chicken livers", "quantity": 250, "unit": "g" },
 				{ "name": "chicken", "quantity": 250, "unit": "g" },
-				{ "name": "rice", "quantity": 300, "unit": "g" },
+				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
 				{ "name": "tomato", "quantity": 1, "unit": "unit" },
 				{ "name": "onion", "quantity": 2, "unit": "unit" },
 				{ "name": "bell pepper", "quantity": 1, "unit": "unit" },
@@ -188,7 +189,7 @@
 			"ingredients": [
 				{ "name": "pork", "quantity": 250, "unit": "g" },
 				{ "name": "chorizo", "quantity": 1, "unit": "unit" },
-				{ "name": "rice", "quantity": 300, "unit": "g" },
+				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
 				{ "name": "tomato", "quantity": 1, "unit": "unit" },
 				{ "name": "beer", "quantity": 1, "unit": "unit" }
 			]
@@ -203,8 +204,8 @@
 			"completeness": "complete",
 			"ingredients": [
 				{ "name": "chicken", "quantity": 250, "unit": "g" },
-				{ "name": "rice", "quantity": 250, "unit": "g" },
-				{ "name": "cream", "quantity": 200, "unit": "ml", "note": "1 small carton" },
+				{ "name": "rice", "quantity": 250, "unit": "g", "cut": 200, "bulk": 320 },
+				{ "name": "cream", "quantity": 200, "unit": "ml", "cut": 150, "bulk": 250, "note": "1 small carton" },
 				{ "name": "mushrooms", "quantity": 1, "unit": "unit", "note": "quantity not specified" },
 				{ "name": "grated cheese", "quantity": 1, "unit": "unit", "note": "1 small bag" }
 			]
@@ -218,7 +219,7 @@
 			"servings_confirmed": false,
 			"completeness": "complete",
 			"ingredients": [
-				{ "name": "rice", "quantity": 80, "unit": "g" },
+				{ "name": "rice", "quantity": 120, "unit": "g", "cut": 90, "bulk": 180 },
 				{ "name": "chicken", "quantity": 100, "unit": "g" },
 				{ "name": "cabbage", "quantity": 1, "unit": "unit", "note": "quantity not specified — assume a handful" },
 				{ "name": "carrot", "quantity": 1, "unit": "unit" },
@@ -260,7 +261,7 @@
 			"completeness": "complete",
 			"ingredients": [
 				{ "name": "ground beef", "quantity": 500, "unit": "g" },
-				{ "name": "pasta", "quantity": 500, "unit": "g" },
+				{ "name": "pasta", "quantity": 500, "unit": "g", "cut": 400, "bulk": 650 },
 				{ "name": "tomato sauce", "quantity": 1, "unit": "unit" },
 				{ "name": "onion", "quantity": 3, "unit": "unit" },
 				{ "name": "beer", "quantity": 1, "unit": "unit" },
@@ -347,7 +348,7 @@
 			"ingredients": [
 				{ "name": "minced chicken", "quantity": 500, "unit": "g" },
 				{ "name": "tortilla wraps", "quantity": 6, "unit": "unit" },
-				{ "name": "rice", "quantity": 300, "unit": "g" },
+				{ "name": "rice", "quantity": 300, "unit": "g", "cut": 240, "bulk": 400 },
 				{ "name": "beans", "quantity": 1, "unit": "unit", "note": "1 jar" },
 				{ "name": "avocado", "quantity": 2, "unit": "unit" },
 				{ "name": "grated cheese", "quantity": 1, "unit": "unit", "note": "1 small bag" },

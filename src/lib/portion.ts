@@ -89,18 +89,13 @@ export function heroPerServing(recipe: PortionRecipe): number | null {
  * for non-divisible heroes like puff pastry). Sides scale linearly. Fixed
  * lines stay put.
  *
- * `heroFactor` (default 1) is an extra multiplier applied to the hero
- * line's scaled quantity AFTER servings are derived. It exists so the
- * macro-balance auto-scaler can ask for "30% more chicken" without that
- * cascading into 30% more servings (which would leave per-day macros
- * unchanged). With a heroFactor > 1 the cook ends up using more hero
- * for the same number of leftover days, raising per-day protein intake.
+ * Hard invariant: hero quantity is exactly `heroQuantity` (i.e. exactly
+ * `packs × packageSize`). The macro auto-balancer is NOT allowed to
+ * fudge it. "1 pack = use the whole pack" is a user-promised contract;
+ * showing 250g of beef when the user committed a 500g pack is wrong.
+ * If macros need adjusting, only side lines move (see macro-balance.ts).
  */
-export function scalePortion(
-	recipe: PortionRecipe,
-	heroQuantity: number,
-	heroFactor = 1,
-): PortionResult {
+export function scalePortion(recipe: PortionRecipe, heroQuantity: number): PortionResult {
 	const heroIndex = findHeroIndex(recipe);
 	const reasons: string[] = [];
 
@@ -127,8 +122,7 @@ export function scalePortion(
 		return zero(recipe, heroIndex, heroQuantity, reasons);
 	}
 
-	// Servings derived from how much hero is committed (BEFORE heroFactor —
-	// the factor adds more hero per cook, not more cook days).
+	// Servings derived from how much hero is committed.
 	const heroPS = heroDefault / Math.max(1, recipe.defaultServings);
 	const rawServings = heroQuantity / heroPS;
 	const servings = hero.ingredient.divisible ? rawServings : Math.max(0, Math.round(rawServings));
@@ -141,14 +135,13 @@ export function scalePortion(
 	const sideScale = servings / Math.max(1, recipe.defaultServings);
 	const scaled = recipe.lines.map((line, i) => {
 		if (i === heroIndex) {
-			// Hero quantity may be tweaked by the macro auto-balancer via
-			// heroFactor. If the hero is non-divisible (whole pack only),
-			// snap the resulting amount to a whole-unit multiple of the
-			// per-serving size so we don't end up cooking 1.7 puff pastry
-			// sheets.
-			const raw = heroQuantity * heroFactor;
+			// Hero is exactly what the user committed — no fudging. For
+			// non-divisible whole-unit heroes (puff pastry), snap to a
+			// whole number so we don't end up with 1.7 sheets.
 			const q =
-				hero.ingredient.divisible || hero.unit !== "unit" ? raw : Math.max(1, Math.round(raw));
+				hero.ingredient.divisible || hero.unit !== "unit"
+					? heroQuantity
+					: Math.max(1, Math.round(heroQuantity));
 			return buildScaled(line, q);
 		}
 		// Side lines scale with the hero. Fixed lines stay at recipe default.

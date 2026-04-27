@@ -151,12 +151,17 @@ const PRICES: PriceSeed[] = [
 	},
 
 	// Meat & poultry.
+	// Generic 'chicken' is sold as a 400g pack. Smaller than the bulk
+	// thigh-fillet pack so a single-meal recipe (curry/noodles at 100g
+	// chicken/serving) yields a clean 4-day cook from one pack — the
+	// '1 pack = use the whole pack' invariant means pack size has to
+	// match how a recipe is actually cooked, not the supplier's bulk SKU.
 	{
 		slug: "chicken",
 		sold_as: "package",
-		package_size: 1000,
+		package_size: 400,
 		package_unit: "g",
-		package_price: 180,
+		package_price: 72,
 	},
 	{
 		slug: "chicken_thigh_fillets",
