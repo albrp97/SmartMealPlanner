@@ -25,7 +25,7 @@ async function fetchKcalPerDay(goal: "maintain" | "cut" | "bulk"): Promise<numbe
 	// then the next big number. Easier: regex on uppercase label nearby.
 	// The structure renders: <div>kcal / day</div><div>2253</div>
 	// Match a number that follows "kcal / day".
-	const m = html.match(/kcal\s*\/\s*day<\/p><p[^>]*>(\d{2,5})</i);
+	const m = html.match(/>kcal<\/p><p[^>]*>(\d{2,5})</i);
 	if (!m) throw new Error(`couldn't parse kcal/day for goal=${goal}; html len ${html.length}`);
 	return Number(m[1]);
 }

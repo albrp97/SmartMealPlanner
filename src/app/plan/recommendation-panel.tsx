@@ -13,6 +13,8 @@
  */
 
 import { useTransition } from "react";
+import { Surface } from "@/components/ui/surface";
+import { TermHeading } from "@/components/ui/term-heading";
 import { swapOrAddPlanEntry } from "./actions";
 
 export interface RecommendationCard {
@@ -35,28 +37,28 @@ interface SlotPanelProps {
 function SlotPanel({ slot, currentName, cards }: SlotPanelProps) {
 	const [pending, start] = useTransition();
 	return (
-		<section className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+		<Surface aria-label={`Suggestions for ${slot}`} className="p-4">
 			<header className="mb-2 flex items-baseline justify-between">
-				<h3 className="font-mono text-xs uppercase tracking-widest text-zinc-400">
-					Suggestions · {slot}
-				</h3>
-				<p className="text-[11px] text-zinc-500">
-					{currentName ? <>currently: {currentName}</> : <>no {slot} planned</>}
+				<TermHeading level={3} prompt="?">
+					sugg · {slot}
+				</TermHeading>
+				<p className="font-mono text-[11px] text-fg-mute">
+					{currentName ? <>now: {currentName}</> : <>{slot}: empty</>}
 				</p>
 			</header>
 			{cards.length === 0 ? (
-				<p className="text-xs text-zinc-500">no candidates — add some recipes first.</p>
+				<p className="font-mono text-xs text-fg-dim">no candidates — add some recipes first.</p>
 			) : (
 				<ul className="space-y-2">
 					{cards.map((c) => (
 						<li
 							key={c.id}
-							className={`rounded border border-zinc-800 bg-zinc-950/40 px-3 py-2 ${pending ? "opacity-60" : ""}`}
+							className={`border border-grid bg-bg-sunk px-3 py-2 ${pending ? "opacity-60" : ""}`}
 						>
 							<div className="flex items-center justify-between gap-2">
 								<div className="min-w-0">
-									<p className="truncate text-sm font-medium text-zinc-100">{c.name}</p>
-									<p className="font-mono text-[10px] text-zinc-500">
+									<p className="truncate text-sm text-fg">{c.name}</p>
+									<p className="font-mono text-[10px] text-fg-mute">
 										{c.categoryName}
 										{c.heroName ? ` · ${c.heroName}` : ""}
 									</p>
@@ -64,24 +66,28 @@ function SlotPanel({ slot, currentName, cards }: SlotPanelProps) {
 								<button
 									type="button"
 									disabled={pending}
-									onClick={() => start(async () => void (await swapOrAddPlanEntry(slot, c.id)))}
-									className="shrink-0 rounded border border-emerald-700 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+									onClick={() =>
+										start(async () => void (await swapOrAddPlanEntry(slot, c.id)))
+									}
+									className="shrink-0 rounded-sm border border-accent/60 bg-accent/10 px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-accent hover:bg-accent/20 disabled:opacity-50 min-h-[36px]"
 								>
-									use as {slot}
+									use → {slot}
 								</button>
 							</div>
-							<p className="mt-1 font-mono text-[10px] text-zinc-500">
+							<p className="mt-1 font-mono text-[10px] text-fg-dim">
 								{Math.round(c.kcal)} kcal · P {Math.round(c.protein)} ·{" "}
 								{c.costPerServing.toFixed(1)} CZK/srv
 							</p>
 							{c.reasons.length > 0 && (
-								<p className="mt-0.5 text-[10px] text-zinc-600">{c.reasons.join(" · ")}</p>
+								<p className="mt-0.5 font-mono text-[10px] text-fg-mute">
+									{c.reasons.join(" · ")}
+								</p>
 							)}
 						</li>
 					))}
 				</ul>
 			)}
-		</section>
+		</Surface>
 	);
 }
 
@@ -92,12 +98,12 @@ export interface RecommendationPanelProps {
 
 export function RecommendationPanel({ lunch, dinner }: RecommendationPanelProps) {
 	return (
-		<section className="space-y-3">
+		<section aria-label="Recommendations" className="space-y-3">
 			<header className="flex items-baseline justify-between">
-				<h2 className="font-mono text-xs uppercase tracking-widest text-zinc-400">
-					Recommendations
-				</h2>
-				<p className="text-[11px] text-zinc-500">click to swap into the slot</p>
+				<TermHeading level={2} prompt="$">
+					recommendations
+				</TermHeading>
+				<p className="font-mono text-[11px] text-fg-mute">click → swap into slot</p>
 			</header>
 			<div className="grid gap-3 sm:grid-cols-2">
 				<SlotPanel slot="lunch" currentName={lunch.currentName} cards={lunch.cards} />

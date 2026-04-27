@@ -25,7 +25,7 @@ const d = haveSmoke ? describe : describe.skip;
 async function fetchKcalPerDay(goal: "maintain" | "cut" | "bulk"): Promise<number> {
 	const res = await fetch(`${APP}/plan?goal=${goal}`, { cache: "no-store" });
 	const html = await res.text();
-	const m = html.match(/kcal\s*\/\s*day<\/p><p[^>]*>(\d{2,5})</i);
+	const m = html.match(/>kcal<\/p><p[^>]*>(\d{2,5})</i);
 	if (!m) throw new Error(`couldn't parse kcal/day for goal=${goal}; html len ${html.length}`);
 	return Number(m[1]);
 }

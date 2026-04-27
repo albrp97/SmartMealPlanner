@@ -7,23 +7,37 @@
  * even with `dynamic = "force-dynamic"` and `router.refresh()`. A hard
  * navigation sidesteps the entire cache layer; the page is fast enough
  * that the reload is invisible.
+ *
+ * Visual: terminal-style square pills, accent on active, uppercase
+ * mono so cut/maint/bulk read as commands rather than buttons.
  */
 import { GOALS, GOAL_LABEL, type Goal } from "@/lib/goals";
 
+const SHORT: Record<Goal, string> = {
+	cut: "CUT",
+	maintain: "MAINT",
+	bulk: "BULK",
+};
+
 export function GoalPills({ active }: { active: Goal }) {
 	return (
-		<div className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950/40 p-1 font-mono text-[11px]">
+		<div
+			role="radiogroup"
+			aria-label="Goal"
+			className="flex items-center gap-1 rounded-sm border border-grid bg-bg-sunk p-1 font-mono text-[11px]"
+		>
 			{GOALS.map((g) => (
 				<a
 					key={g}
 					href={`/plan?goal=${g}`}
-					className={`rounded-full px-2.5 py-1 transition ${
-						active === g
-							? "bg-emerald-500/15 text-emerald-300"
-							: "text-zinc-400 hover:text-zinc-200"
+					role="radio"
+					aria-checked={active === g}
+					aria-label={GOAL_LABEL[g]}
+					className={`min-h-[36px] rounded-sm px-3 py-1.5 uppercase tracking-widest transition-colors ${
+						active === g ? "bg-accent/15 text-accent" : "text-fg-dim hover:text-fg"
 					}`}
 				>
-					{GOAL_LABEL[g]}
+					{SHORT[g]}
 				</a>
 			))}
 		</div>

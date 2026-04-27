@@ -26,10 +26,10 @@ async function fetchDayMacros(goal: "maintain" | "cut" | "bulk") {
 		return Number(m[1]);
 	}
 	return {
-		kcal: num("kcal\\s*\\/\\s*day"),
-		protein: num("protein\\s*g"),
-		carbs: num("carbs\\s*g"),
-		fat: num("fat\\s*g"),
+		kcal: num("kcal"),
+		protein: num("protein"),
+		carbs: num("carbs"),
+		fat: num("fat"),
 	};
 }
 

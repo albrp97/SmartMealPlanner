@@ -10,6 +10,8 @@
  * Breakfast is constant (`breakfast_daily` × 7) and never stored.
  */
 import { ButtonLink } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
+import { TermHeading } from "@/components/ui/term-heading";
 import { type CostLineInput, computeRecipeCost } from "@/lib/cost";
 import { createClient } from "@/lib/db/client-server";
 import { type Goal, TARGETS, isGoal } from "@/lib/goals";
@@ -121,10 +123,11 @@ interface ScaledIngredient {
 export default async function PlanPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ goal?: string }>;
+	searchParams: Promise<{ goal?: string; debug?: string }>;
 }) {
-	const { goal: goalParam } = await searchParams;
+	const { goal: goalParam, debug: debugParam } = await searchParams;
 	const goal: Goal = isGoal(goalParam) ? goalParam : "maintain";
+	const debug = debugParam === "1";
 	const target = TARGETS[goal];
 
 	const supabase = await createClient();
@@ -576,27 +579,28 @@ export default async function PlanPage({
 	const dinnerCurrentName = dinnerApplied[0]?.recipe.name ?? null;
 
 	return (
-		<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10">
+		<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10 sm:gap-6">
 			<header className="flex flex-wrap items-end justify-between gap-3">
 				<div className="space-y-1">
-					<p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Phase 3</p>
-					<h1 className="text-2xl font-semibold tracking-tight">Meal plan</h1>
-					<p className="text-sm text-zinc-400">
-						Pick recipes; dial how many <span className="text-zinc-200">hero packs</span> you'll
-						commit. Servings, macros and the shopping list all fall out of that.
+					<TermHeading level={1} prompt="$" caret>
+						plan
+					</TermHeading>
+					<p className="font-mono text-xs text-fg-dim sm:text-sm">
+						pick recipes; dial how many <span className="text-accent">hero packs</span> you'll
+						commit. servings, macros &amp; the shopping list fall out of that.
 					</p>
-					<p className="font-mono text-[11px] text-zinc-500">
-						auto-balance · protein ×
-						<span className="text-emerald-300">{auto.scales.P.toFixed(2)}</span>
-						{" · carbs ×"}
-						<span className="text-emerald-300">{auto.scales.C.toFixed(2)}</span>
-						{" · fat ×"}
-						<span className="text-emerald-300">{auto.scales.F.toFixed(2)}</span>
-						{auto.fallback ? (
-							<span className="text-amber-300"> · fallback (single-kcal)</span>
-						) : null}
-						{auto.clamped ? <span className="text-amber-300"> · clamped</span> : null}
-					</p>
+					{debug && (
+						<p className="font-mono text-[11px] text-fg-mute">
+							λ auto-balance · P×
+							<span className="text-accent">{auto.scales.P.toFixed(2)}</span>
+							{" · C×"}
+							<span className="text-accent">{auto.scales.C.toFixed(2)}</span>
+							{" · F×"}
+							<span className="text-accent">{auto.scales.F.toFixed(2)}</span>
+							{auto.fallback ? <span className="text-amber"> · fallback</span> : null}
+							{auto.clamped ? <span className="text-amber"> · clamped</span> : null}
+						</p>
+					)}
 				</div>
 				<GoalPills active={goal} />
 			</header>
@@ -608,31 +612,33 @@ export default async function PlanPage({
 
 			<DayMicroRollup micros={dayMicros} />
 
-			<div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-				<div className="space-y-6">
-					<section className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-						<header className="mb-2 flex items-center justify-between">
-							<h2 className="font-mono text-xs uppercase tracking-widest text-zinc-400">
-								Breakfast · pinned × 7 days
-							</h2>
+			<div className="grid gap-5 lg:grid-cols-[1fr_22rem] lg:gap-6">
+				<div className="space-y-5 sm:space-y-6">
+					<Surface aria-label="Breakfast" className="p-4">
+						<header className="mb-2 flex items-center justify-between gap-2">
+							<TermHeading level={3} prompt="◆">
+								breakfast · pinned ×7
+							</TermHeading>
 							{breakfast ? (
 								<Link
 									href={`/recipes/${breakfast.slug}`}
-									className="text-xs text-zinc-400 hover:text-zinc-200"
+									className="font-mono text-[11px] text-fg-dim hover:text-fg"
 								>
-									{breakfast.name} →
+									{breakfast.name} ↗
 								</Link>
 							) : (
-								<span className="text-xs text-rose-300">breakfast_daily not found</span>
+								<span className="font-mono text-[11px] text-rose">
+									breakfast_daily not found
+								</span>
 							)}
 						</header>
 						{breakfastPS && (
-							<p className="font-mono text-[11px] text-zinc-500">
+							<p className="font-mono text-[11px] text-fg-mute">
 								{Math.round(breakfastPS.kcal)} kcal · P {Math.round(breakfastPS.protein)} · C{" "}
 								{Math.round(breakfastPS.carbs)} · F {Math.round(breakfastPS.fat)} per day
 							</p>
 						)}
-					</section>
+					</Surface>
 
 					<MealSection
 						title="Lunch"
@@ -669,7 +675,7 @@ export default async function PlanPage({
 
 			<footer className="pt-4">
 				<ButtonLink href="/recipes" variant="ghost" size="sm">
-					← Recipes
+					← recipes
 				</ButtonLink>
 			</footer>
 		</main>
@@ -693,17 +699,17 @@ function MealSection({
 }) {
 	const dayLabel = days % 1 === 0 ? days.toString() : days.toFixed(1);
 	return (
-		<section className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+		<Surface aria-label={title} className="p-4">
 			<header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-				<h2 className="font-mono text-xs uppercase tracking-widest text-zinc-400">
-					{title}
-					<span className="ml-2 text-zinc-200">
-						{dayLabel} {days === 1 ? "serving" : "servings"}
+				<TermHeading level={3} prompt={title.toLowerCase() === "lunch" ? "◆" : "◇"}>
+					{title.toLowerCase()}
+					<span className="ml-2 text-fg">
+						{dayLabel} {days === 1 ? "srv" : "srvs"}
 					</span>
-				</h2>
+				</TermHeading>
 				{days > 0 && (
-					<span className="font-mono text-[11px] text-zinc-500">
-						avg {Math.round(kcalAvg)} kcal / serving
+					<span className="font-mono text-[11px] text-fg-mute">
+						avg {Math.round(kcalAvg)} kcal/srv
 					</span>
 				)}
 			</header>
@@ -726,6 +732,6 @@ function MealSection({
 				))}
 				<AddPlanEntry slot={slot} recipes={pickerRecipes} />
 			</div>
-		</section>
+		</Surface>
 	);
 }

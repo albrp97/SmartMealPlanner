@@ -89,48 +89,56 @@ function RecipePicker({ recipes, value, placeholder, disabled, onPick }: PickerP
 				type="button"
 				disabled={disabled}
 				onClick={() => setOpen((o) => !o)}
-				className="flex w-full items-center justify-between rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left text-sm text-zinc-100 hover:border-zinc-600"
+				aria-haspopup="listbox"
+				aria-expanded={open}
+				className="flex min-h-[40px] w-full items-center justify-between rounded-sm border border-grid bg-bg-sunk px-3 py-2 text-left font-mono text-sm text-fg hover:border-fg-mute"
 			>
-				<span className={selected ? "" : "text-zinc-500"}>
+				<span className={selected ? "" : "text-fg-mute"}>
 					{selected ? selected.name : placeholder}
 				</span>
-				<span className="ml-2 text-xs text-zinc-500">▾</span>
+				<span aria-hidden className="ml-2 text-xs text-fg-mute">
+					▾
+				</span>
 			</button>
 			{open && (
-				<div className="absolute left-0 top-full z-20 mt-1 w-[20rem] max-w-[80vw] rounded-md border border-zinc-700 bg-zinc-950 shadow-xl">
+				<div
+					role="listbox"
+					className="absolute left-0 top-full z-30 mt-1 w-[min(20rem,92vw)] max-h-[60vh] overflow-hidden rounded-sm border border-grid bg-bg shadow-2xl"
+				>
 					<input
 						autoFocus
 						value={q}
 						onChange={(e) => setQ(e.target.value)}
 						placeholder="type to filter…"
-						className="w-full rounded-t-md border-b border-zinc-800 bg-transparent px-2 py-1.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+						aria-label="filter recipes"
+						className="w-full border-b border-grid bg-bg-sunk px-3 py-2 text-base text-fg outline-none placeholder:text-fg-mute"
 					/>
-					<div className="max-h-72 overflow-y-auto">
+					<div className="max-h-[50vh] overflow-y-auto">
 						{filtered.length === 0 ? (
-							<p className="px-3 py-3 text-xs text-zinc-500">no recipes match</p>
+							<p className="px-3 py-3 font-mono text-xs text-fg-mute">no recipes match</p>
 						) : (
 							filtered.map(([cat, items]) => (
 								<div key={cat}>
-									<p className="sticky top-0 bg-zinc-950/95 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+									<p className="sticky top-0 bg-bg/95 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-mute">
 										{cat}
 									</p>
 									{items.map((r) => (
 										<button
 											type="button"
 											key={r.id}
+											role="option"
+											aria-selected={r.id === value}
 											onClick={() => {
 												setOpen(false);
 												setQ("");
 												onPick(r.id);
 											}}
-											className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm hover:bg-zinc-900 ${
-												r.id === value
-													? "bg-emerald-500/10 text-emerald-200"
-													: "text-zinc-100"
+											className={`flex min-h-[44px] w-full items-center justify-between gap-2 px-3 py-2 text-left font-mono text-sm hover:bg-bg-sunk ${
+												r.id === value ? "bg-accent/10 text-accent" : "text-fg"
 											}`}
 										>
 											<span className="truncate">{r.name}</span>
-											<span className="font-mono text-[10px] text-zinc-500">
+											<span className="font-mono text-[10px] text-fg-mute">
 												{Math.round(r.kcal)} kcal
 											</span>
 										</button>
@@ -207,14 +215,15 @@ export function PlanEntryRow({
 
 	return (
 		<div
-			className={`rounded border border-zinc-800 bg-zinc-900/40 ${pending ? "opacity-60" : ""}`}
+			className={`rounded-sm border border-grid bg-bg-elev ${pending ? "opacity-60" : ""}`}
 		>
-			<div className="flex flex-wrap items-center gap-2 px-2 py-1.5">
+			<div className="flex flex-wrap items-center gap-2 px-2 py-2">
 				<button
 					type="button"
 					onClick={() => setOpen((o) => !o)}
-					className="flex h-6 w-6 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-					title={open ? "Hide ingredients" : "Show ingredients"}
+					aria-expanded={open}
+					aria-label={open ? "Hide ingredients" : "Show ingredients"}
+					className="flex h-9 w-9 items-center justify-center rounded-sm font-mono text-sm text-fg-dim hover:bg-bg-sunk hover:text-fg"
 				>
 					{open ? "▾" : "▸"}
 				</button>
@@ -225,10 +234,12 @@ export function PlanEntryRow({
 					disabled={pending}
 					onPick={(newId) => start(async () => void (await updateRecipe(id, newId)))}
 				/>
-				<label className="flex items-center gap-1 font-mono text-xs text-zinc-400">
-					×
+				<label className="flex items-center gap-1 font-mono text-xs text-fg-dim">
+					<span aria-hidden>×</span>
+					<span className="sr-only">hero packs</span>
 					<input
 						type="number"
+						inputMode="numeric"
 						min={1}
 						step={1}
 						disabled={pending}
@@ -239,69 +250,72 @@ export function PlanEntryRow({
 							setLocalPacks(v);
 							start(async () => void (await updatePacks(id, v)));
 						}}
-						className="w-14 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 text-right text-sm text-zinc-100"
+						className="min-h-[40px] w-16 rounded-sm border border-grid bg-bg-sunk px-2 py-1 text-right font-mono text-base text-fg"
 					/>
 					<span className="hidden sm:inline">{heroLabel}</span>
 				</label>
 				<span
-					className="font-mono text-[11px] text-zinc-400"
+					className="font-mono text-[11px] text-fg-dim"
 					title="per-serving macros at the current goal"
 				>
-					→ {servingsLabel} srv · {kcalPerServing} kcal/srv · P{pPS} C{cPS} F{fPS}
+					→ {servingsLabel} srv · {kcalPerServing} kcal · P{pPS} C{cPS} F{fPS}
 				</span>
 				<button
 					type="button"
 					disabled={pending}
 					onClick={() => start(async () => void (await deletePlanEntry(id)))}
-					className="ml-auto rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 hover:border-rose-700 hover:text-rose-300"
-					title="Remove"
+					aria-label="Remove this entry"
+					className="ml-auto inline-flex h-9 min-w-[40px] items-center justify-center rounded-sm border border-grid bg-bg-sunk px-2 font-mono text-sm text-fg-dim hover:border-rose hover:text-rose"
 				>
 					✕
 				</button>
 			</div>
 			{open && (
-				<div className="border-t border-zinc-800 bg-zinc-950/40 px-2 py-2">
-					<div className="mb-1 flex items-baseline justify-between">
-						<p className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-							whole cook · {servingsLabel} servings
+				<div className="border-t border-grid bg-bg-sunk px-3 py-3">
+					<div className="mb-2 flex items-baseline justify-between">
+						<p className="font-mono text-[10px] uppercase tracking-widest text-fg-mute">
+							cook · {servingsLabel} srv
 						</p>
 						<Link
 							href={`/recipes/${recipeSlug}`}
-							className="font-mono text-[10px] text-zinc-400 hover:text-zinc-200"
+							className="font-mono text-[10px] text-fg-dim hover:text-fg"
 						>
-							recipe →
+							recipe ↗
 						</Link>
 					</div>
 					<ul className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
 						{scaledLines
 							.filter((sl) => sl.quantity > 0)
 							.map((sl) => (
-							<li
-								key={sl.name}
-								className="flex items-baseline justify-between gap-2 font-mono text-[11px]"
-							>
-								<span
-									className={
-										sl.role === "hero"
-											? "text-emerald-300"
-											: sl.role === "fixed"
-												? "text-amber-300"
-												: "text-zinc-200"
-									}
-									title={sl.role}
+								<li
+									key={sl.name}
+									className="flex items-baseline justify-between gap-2 font-mono text-[11px]"
 								>
-									{sl.name}
-								</span>
-								<span className="text-zinc-400">
-									{formatQty(sl.quantity)} {sl.unit}
-								</span>
-							</li>
-						))}
+									<span
+										className={
+											sl.role === "hero"
+												? "text-accent"
+												: sl.role === "fixed"
+													? "text-amber"
+													: "text-fg"
+										}
+										title={sl.role}
+									>
+										<span aria-hidden className="mr-1">
+											{sl.role === "hero" ? "◆" : sl.role === "fixed" ? "▣" : "◇"}
+										</span>
+										{sl.name}
+									</span>
+									<span className="text-fg-dim">
+										{formatQty(sl.quantity)} {sl.unit}
+									</span>
+								</li>
+							))}
 					</ul>
-					<p className="mt-2 font-mono text-[10px] text-zinc-500">
-						<span className="text-emerald-300">hero</span> drives sizing ·{" "}
-						<span className="text-zinc-200">side</span> scales with goal ·{" "}
-						<span className="text-amber-300">fixed</span> stays put
+					<p className="mt-2 font-mono text-[10px] text-fg-mute">
+						<span className="text-accent">◆ hero</span> drives sizing ·{" "}
+						<span className="text-fg">◇ side</span> scales with goal ·{" "}
+						<span className="text-amber">▣ fixed</span> stays put
 					</p>
 				</div>
 			)}

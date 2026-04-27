@@ -601,21 +601,190 @@ it just shouldn't surface as a "0.0 unit" UI artefact.
 
 Verified: `pnpm typecheck` clean, 90/90 unit + smoke green.
 
-### 7.6 UI rework pass **[next]**
+### 7.6 UI rework pass — Cyberpunk Terminal **[next]**
 
 A single closing pass on the visual design — no new pages, no new
-features. Scope:
+features. Scope is **mobile-first** (the planner will be used mostly on
+a phone) with a deliberately strong **cyberpunk-terminal** aesthetic
+(Ghost in the Shell, Mr. Robot, Blade Runner CRT/HUD vibes), built on
+top of what's already there: dark zinc backgrounds, monospaced labels,
+emerald/amber/rose semantics. The goal is to push that further into a
+coherent system rather than rewrite the markup.
 
-- Tighten the `/plan` layout: cleaner spacing, consistent typography,
-  the goal pills + auto-balance scalar pill should read as one header
-  block.
-- Mobile pass: confirm `/plan`, `/recipes/[slug]`, `/ingredients` all
-  work on a phone-width viewport; collapse the shopping list aside into
-  a `<details>` block on small screens.
-- Replace any remaining ad-hoc class strings with the existing UI
-  primitives in [`src/components/ui`](src/components/ui).
-- Remove debug strings (the `auto-balance · protein ×1.40 …` line can
-  go behind a `?debug=1` query toggle).
+Implementation is staged across phases **3.15 → 3.18** so each one is
+independently shippable, reviewable, and rollback-able.
+
+#### 7.6.1 Design system (the look)
+
+**Palette.** Tailwind 4 `@theme` tokens in
+[`src/app/globals.css`](src/app/globals.css). Replace the current
+zinc/emerald defaults with named CRT tokens:
+
+| Token | Value | Purpose |
+|---|---|---|
+| `--color-bg` | `#05070a` | page background (deep near-black, slight blue cast) |
+| `--color-bg-elev` | `#0b0f14` | cards, panels |
+| `--color-bg-sunk` | `#02040a` | inputs, code blocks |
+| `--color-grid` | `#0f1620` | subtle 1px CRT grid lines |
+| `--color-fg` | `#d6f1e2` | primary text (warm CRT green-tinted off-white) |
+| `--color-fg-dim` | `#7e8a9a` | secondary text |
+| `--color-fg-mute` | `#3f4a5a` | tertiary / disabled |
+| `--color-accent` | `#7CFFB2` | primary CRT green (hero, success, focus) |
+| `--color-accent-hot` | `#39FF88` | active/hover variant |
+| `--color-cyan` | `#22D3EE` | links, info, "data" |
+| `--color-magenta` | `#FF4DA6` | warnings / over-budget / cut-only |
+| `--color-amber` | `#F59E0B` | caution (sodium > 2300, fixed lines) |
+| `--color-rose` | `#F43F5E` | destructive / error |
+
+Contrast checked at WCAG **AA** against `--color-bg`:
+`#7CFFB2 ≈ 13.4:1`, `#22D3EE ≈ 9.7:1`, `#FF4DA6 ≈ 6.0:1`,
+`#d6f1e2 ≈ 14.8:1`, `#7e8a9a ≈ 6.4:1`. The dim token is the floor —
+nothing important goes below it.
+
+**Typography.** Geist Mono (already loaded) becomes the *default* body
+font; Geist Sans is reserved for long-form prose blocks (none in the
+app currently — Sans falls back to system stack on the marketing-style
+README links). Sizes:
+
+- `text-[11px]` mono uppercase tracking-widest for labels (existing
+  pattern, kept).
+- `text-sm` (14 px) mono for body / table cells.
+- `text-base` (16 px) mono for inputs (prevents iOS auto-zoom on focus).
+- `text-lg` for section headings; no decorative hero type.
+
+**Iconography.** Box-drawing + ASCII. No icon font, no SVG library:
+`▸ ▾ ▴ ▼ ✕ ◇ ◆ ▣ ░ █ → ←` already in use; we standardise on a small
+set:
+
+| Glyph | Meaning |
+|---|---|
+| `>` | command prompt prefix on headings |
+| `▸ ▾` | collapsible state |
+| `◆` | hero line / bullet |
+| `◇` | side line / inactive |
+| `■ □` | toggle on/off, micro RDA fill |
+| `↗` | external link |
+| `λ` | one-liner / debug pill |
+
+**Surfaces.** Three layers, no more:
+
+1. **Page** (`bg-bg`) — flat, with a faint repeating CSS grid as
+   background (`background-image: linear-gradient(...)` 32 px cells,
+   `--color-grid` at 30 % opacity). No image asset.
+2. **Card** (`bg-bg-elev`) — 1 px border `--color-grid`, square corners
+   (`rounded-none` or `rounded-sm`; no pill cards), optional 1 px
+   `--color-accent`/30 % top border to "tag" the active surface.
+3. **Sunk** (`bg-bg-sunk`) — inputs, code, the shopping-list interior.
+
+**Effects** (CSS-only; **all wrapped in `@media (prefers-reduced-motion: no-preference)`**):
+
+- **Scanlines.** Single utility `.crt-scanlines::after` adds a fixed,
+  pointer-events-none overlay of 2 px horizontal lines at 4 % opacity.
+  Applied to `<body>` only.
+- **Glow on focus / hover.** `box-shadow: 0 0 0 1px var(--color-accent),
+  0 0 12px -2px var(--color-accent)` on `:focus-visible` for buttons,
+  inputs, and active goal pills. Cyan variant for links.
+- **Caret blink.** A `.term-caret::after { content: '▌'; animation: blink
+  1s steps(2) infinite; }` for active-input "you are here" indicator
+  (e.g. on the recipe picker placeholder).
+- **Boot stripe.** A 1 px accent-coloured top stripe under `<Nav>` that
+  animates left → right on initial mount only (`@keyframes term-boot`).
+  Plays once per session via `sessionStorage` flag, **never** under
+  `prefers-reduced-motion`.
+- **No glitch text, no random-character morph, no flicker.** They look
+  cool for 5 seconds and become hostile thereafter — and they trigger
+  vestibular issues. Out of scope.
+
+#### 7.6.2 Mobile-first rules
+
+Phone is the primary target (`/plan` opened multiple times a day).
+Concrete rules:
+
+- Tailwind breakpoints stay default. Layout authored for `< sm` (375 px
+  iPhone width); `sm:` and up are progressive enhancements.
+- **Tap targets** ≥ 44 × 44 px (Apple HIG / WCAG 2.5.5). The current
+  `px-2 py-1` buttons (~28 px tall) get a `min-h-[44px]` floor on touch
+  surfaces.
+- **Viewport.** `viewport-fit=cover` + `padding-inline: env(safe-area-inset-*)`
+  on the page wrapper so the boot stripe and bottom dock don't sit
+  under the notch / home indicator.
+- **Inputs** at `text-base` (16 px) to defeat iOS focus-zoom.
+  `inputmode="decimal"` on the packs counter.
+- **Bottom-dock nav** on `< sm`: the existing top `<Nav>` collapses to
+  a sticky bottom bar (`fixed bottom-0` + safe-area inset), three icons
+  + labels (Plan · Recipes · Ingredients). Top nav stays for `sm:`.
+- **`/plan` shopping aside** collapses to a `<details>` element under
+  the day card on `< sm`; stays as a right column on `lg:`. Use
+  `<details>` so the disclosure works without JS.
+- **Per-entry ingredient drawer** already uses `useState(open)` — keep,
+  but make the open/close button the entire row (bigger tap target),
+  not just the chevron.
+- **Recipe picker dropdown** clamps to `min(20rem, 92vw)` with
+  `max-h-[60vh]` so it never escapes the viewport on a phone.
+- **`/recipes/[slug]` macro/micro grids**: 2 columns on `< sm`,
+  3 columns on `sm:`, 4 on `md:`. No 6-up cards on mobile.
+
+#### 7.6.3 Accessibility (non-negotiable floor)
+
+- `prefers-reduced-motion: reduce` disables scanlines, boot stripe,
+  caret blink, *and* the existing Tailwind `transition-*` defaults via
+  a global `*, *::before, *::after { animation: none !important;
+  transition: none !important; }` block.
+- **Focus visible everywhere.** `:focus-visible` ring uses
+  `--color-accent` not `--color-cyan`, 2 px, with the glow effect.
+  Never remove the outline.
+- **Colour is never the only signal.** Cut/maintain/bulk pills carry a
+  text token (`CUT`, `MAINT`, `BULK`); the in-band macro card already
+  has the `±%` text alongside its zinc/emerald/amber colour and that
+  stays.
+- **Semantics.** Every page wraps content in `<main>`; the planner aside
+  is `<aside aria-label="Shopping list">`; collapsibles use either
+  `<details>/<summary>` (preferred) or `aria-expanded` + `aria-controls`.
+- **Contrast.** Verified against the palette table above. New badges
+  must hit ≥ 4.5:1 against their surface; check with the
+  [WebAIM contrast checker](https://webaim.org/resources/contrastchecker/)
+  during PR review.
+- **No `tabIndex={-1}` shortcuts** to mute focus rings. If a control
+  shouldn't be focusable, it should be a `<div>`, not a button.
+
+#### 7.6.4 Component primitives to extend
+
+Already in [`src/components/ui`](src/components/ui): `button.tsx`,
+`card.tsx`, `field.tsx`. We add three small files (no new deps):
+
+| File | Purpose |
+|---|---|
+| `src/components/ui/surface.tsx` | `<Surface tone="elev" \| "sunk" tagged?>` — the three-layer system. Replaces ad-hoc `bg-zinc-900/40 border border-zinc-800 rounded` strings scattered across the planner. |
+| `src/components/ui/badge.tsx` | `<Badge tone="hero" \| "side" \| "fixed" \| "info" \| "warn" \| "danger">` — wraps the existing `border + bg/30 + text` pattern (currently inlined in [`ingredients/page.tsx`](src/app/ingredients/page.tsx) and the shopping list). |
+| `src/components/ui/term-heading.tsx` | `<TermHeading prompt="$" level={2}>recipes</TermHeading>` — the `> command-style` headings used across pages. Renders the prompt prefix, an animated caret on the active page, and the right `aria-level`. |
+
+Each one is < 40 lines, no state, server-component-safe.
+
+#### 7.6.5 Phase plan
+
+| Phase | Scope | Files |
+|---|---|---|
+| **3.15** | Design tokens + global effects + reduced-motion guard. New primitives (`Surface`, `Badge`, `TermHeading`). Nav refactored to top + sticky-bottom-on-mobile. | `globals.css`, `layout.tsx`, `nav.tsx`, `components/ui/*` |
+| **3.16** | `/plan` rework: `MealSection`, `PlanEntryRow`, `RecipePicker`, `ShoppingList`, `DayMacroCard`, `DayMicroRollup`, `GoalPills`. Shopping list → `<details>` on mobile. Hide debug scalar string behind `?debug=1`. | `app/plan/**` |
+| **3.17** | `/recipes`, `/recipes/[slug]`, `/recipes/new`, `/ingredients`, `/ingredients/[id]/edit` — apply primitives, mobile grid breakpoints, badge replacements. | `app/recipes/**`, `app/ingredients/**` |
+| **3.18** | Motion polish: boot stripe, caret blink, scanlines on/off toggle in `<Nav>` (persisted to `localStorage`). Final mobile QA pass on real device + Playwright snapshot baseline. | `globals.css`, `nav.tsx`, optional `tests/integration/visual-*` |
+
+**Definition of done for the rework:**
+
+1. `pnpm typecheck` + 90/90 tests still green.
+2. Lighthouse mobile run on `/plan` ≥ 90 in Performance and 100 in
+   Accessibility (run via `pnpm exec lighthouse http://localhost:3000/plan
+   --form-factor=mobile --only-categories=performance,accessibility`).
+3. Verified at maintain · cut · bulk on a real iPhone-width viewport
+   (Chrome DevTools "iPhone 14" preset min, real phone preferred).
+4. `prefers-reduced-motion: reduce` toggled in DevTools — boot stripe,
+   scanlines, blink, transitions all gone; functionality unchanged.
+5. README screenshot updated with the new look.
+
+**Out of scope (reaffirming §7.8):** no new pages, no theme switcher
+beyond the scanlines on/off toggle, no PWA manifest, no service
+worker, no offline. The cyberpunk terminal is *the* theme — no light
+mode.
 
 ### 7.7 Deployment / architecture final touches **[next]**
 
