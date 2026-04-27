@@ -764,10 +764,10 @@ Each one is < 40 lines, no state, server-component-safe.
 
 | Phase | Scope | Files |
 |---|---|---|
-| **3.15** | Design tokens + global effects + reduced-motion guard. New primitives (`Surface`, `Badge`, `TermHeading`). Nav refactored to top + sticky-bottom-on-mobile. | `globals.css`, `layout.tsx`, `nav.tsx`, `components/ui/*` |
-| **3.16** | `/plan` rework: `MealSection`, `PlanEntryRow`, `RecipePicker`, `ShoppingList`, `DayMacroCard`, `DayMicroRollup`, `GoalPills`. Shopping list → `<details>` on mobile. Hide debug scalar string behind `?debug=1`. | `app/plan/**` |
-| **3.17** | `/recipes`, `/recipes/[slug]`, `/recipes/new`, `/ingredients`, `/ingredients/[id]/edit` — apply primitives, mobile grid breakpoints, badge replacements. | `app/recipes/**`, `app/ingredients/**` |
-| **3.18** | Motion polish: boot stripe, caret blink, scanlines on/off toggle in `<Nav>` (persisted to `localStorage`). Final mobile QA pass on real device + Playwright snapshot baseline. | `globals.css`, `nav.tsx`, optional `tests/integration/visual-*` |
+| **3.15** ✅ | Design tokens + global effects + reduced-motion guard. New primitives (`Surface`, `Badge`, `TermHeading`). Nav refactored to top + sticky-bottom-on-mobile. | `globals.css`, `layout.tsx`, `nav.tsx`, `components/ui/*` |
+| **3.16** ✅ | `/plan` rework: `MealSection`, `PlanEntryRow`, `RecipePicker`, `ShoppingList`, `DayMacroCard`, `DayMicroRollup`, `GoalPills`. Shopping list → `<details>` on mobile. Hide debug scalar string behind `?debug=1`. | `app/plan/**` |
+| **3.17** ✅ | `/`, `/recipes`, `/recipes/[slug]`, `/recipes/new`, `/recipes/[slug]/edit`, `/ingredients`, `/ingredients/new`, `/ingredients/[id]/edit` — apply primitives + tokens, 40–44 px tap targets, `font-mono` body, `inputMode` hints. Shared `Card`/`Button`/`Field`/`Input`/`Label`/`Textarea`/`Select` primitives migrated. | `app/recipes/**`, `app/ingredients/**`, `components/ui/*` |
+| **3.18** ✅ | Motion polish: boot stripe, caret blink, scanlines on/off toggle in `<Nav>` (persisted to `localStorage`); reduced-motion kill switch verified in CSS. Smoke regex updated to match new short macro labels. | `globals.css`, `nav.tsx`, `tests/integration/plan-*-smoke.test.ts` |
 
 **Definition of done for the rework:**
 
