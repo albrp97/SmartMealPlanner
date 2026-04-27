@@ -427,51 +427,55 @@ which the balancer can't touch.
 Legend: **[done]** shipped to `main` · **[next]** the work-in-progress
 slot · **[idea]** captured but not started.
 
+This is the **closing roadmap** — no new features beyond what's listed
+below. The remaining work is finishing scope, not expanding it.
+
 | # | Topic | Status |
 |---|---|---|
-| 7.1 | Plan-page decongestion (split into smaller components) | **[in progress]** (3.11) |
+| 7.1 | Recommendation panel under planner | **[done]** (3.9) |
 | 7.2 | Rewire per-goal overrides into the macro balancer | **[done]** (3.10) |
-| 7.3 | Recommendation panel under planner | **[done]** (3.9) |
-| 7.4 | Per-goal overrides on fat-heavy fixed lines, micros, pantry, export, auth, PWA | **[next]** |
-| 7.5 | Things explicitly NOT building (LLM/OCR) | locked |
+| 7.3 | Daily micronutrient roll-up on `/plan` | **[next]** |
+| 7.4 | Recipe baseline audit (all ~20 recipes) | **[next]** |
+| 7.5 | Investigate "puff pastry shows 0.0 unit" rendering bug | **[next]** |
+| 7.6 | UI rework pass | **[next]** |
+| 7.7 | Deployment / architecture final touches | **[next]** |
+| 7.8 | Things explicitly NOT building (LLM/OCR + dropped features) | locked |
 
-### 7.1 Plan-page decongestion **[in progress — Phase 3.11]**
+### 7.1 Recommendation system **[done — Phase 3.9]**
 
-The `/plan` page was ~814 lines doing six things: goal pills,
-lunch/dinner pickers, hero-pack counters, macro card, recommendation
-panel, shopping list. Phase 3.11 has moved two of those into
-[`src/app/plan/_components/`](src/app/plan/_components):
+[`src/lib/recommend.ts`](src/lib/recommend.ts) +
+[`src/app/plan/recommendation-panel.tsx`](src/app/plan/recommendation-panel.tsx) +
+`swapOrAddPlanEntry` action.
 
-- [`day-macro-card.tsx`](src/app/plan/_components/day-macro-card.tsx) —
-  the kcal / P / C / F header strip with the in-band colour cue (zinc /
-  emerald / amber depending on `actual / target`). Pure presentation,
-  reads four numbers and the goal target.
-- [`shopping-list.tsx`](src/app/plan/_components/shopping-list.tsx) —
-  the right-hand aside: cost summary + per-ingredient list with the
-  `·fixed` (non-divisible pack) and `def` / `real` (price provenance)
-  badges. Takes the aggregated `ShoppingItem[]` plus the package-meta
-  map; no logic.
+For each slot, ranks every non-breakfast recipe that isn't already
+planned and surfaces the top 3:
 
-[`page.tsx`](src/app/plan/page.tsx) is down to ~691 lines and now reads
-top-to-bottom as data-fetch → baseline pass → balanced pass → render.
-GoalPills / RecommendationPanel / MealSection were already extracted.
+```
+score(candidate) =
+    + goalNutritionFit                // cut: P/kcal×1000; bulk: kcal/10; maintain: flat 30
+    − 80 * sameCategoryAsOtherSlot    // hard variety penalty
+    − 50 * sameHeroAsOtherSlot        // softer variety penalty
+    −  0.5 * costPerServing           // mild thrift bonus
+```
 
-Still-inline pieces (deferred):
-- `MealSection` (the lunch/dinner picker + scaled-line list) — lives in
-  page.tsx because it threads through `applied`, `pickerRecipes` and the
-  slot. Easy to extract next; left in place because it's the only inline
-  piece left and isn't blocking the file from being readable.
-- The two-pass balancer flow itself — stays in `page.tsx` so all the
-  data-fetch + nutrition wiring stays in one place; pulling it into a
-  helper would just shuffle imports without saving lines.
+Deterministic and pure — fully unit-tested in
+[`tests/unit/recommend.test.ts`](tests/unit/recommend.test.ts).
 
-Follow-up: also make the shopping list collapsible (`<details>`) on
-mobile so the meal pickers stay above the fold. Not done yet.
+Cost per serving comes from [`computeRecipeCost`](src/lib/cost.ts) on
+the unscaled recipe lines (any unit-mismatched line evaluates to 0 cost
+— a small thrift bonus, never an error). The "reasons" array on each
+card surfaces the active penalties for transparency.
 
-### 7.2 Rewire overrides into the balancer **[done — Phase 3.10]**
+The page builds a single ranked list of 6 candidates (variety-penalised
+against *both* slots' current picks) and **interleaves** them into the
+two columns — even-indexed → lunch, odd-indexed → dinner. This
+guarantees disjoint columns *and* both get a mix of high- and mid-ranked
+picks rather than "top half / bottom half".
+
+### 7.2 Override-aware balancer **[done — Phase 3.10]**
 
 [`src/app/plan/page.tsx`](src/app/plan/page.tsx)'s `buildRecipes(scales)`
-now loads `recipe_ingredient_overrides` once at the top of the page and
+loads `recipe_ingredient_overrides` once at the top of the page and
 feeds the rows through
 [`buildOverrideMap`](src/lib/recipe-overrides.ts) +
 [`applyGoalOverrides`](src/lib/recipe-overrides.ts) **before** the
@@ -481,9 +485,7 @@ per-class scalar multiplication. Effect:
   cut/bulk values).
 - On **cut/bulk**, each recipe's lines are first replaced with their
   override quantity (or dropped if the override is 0); the macro
-  balancer then scales whatever's left. So "less olive oil at breakfast
-  on cut" or "no cheese on cut" can be authored once in the recipe
-  editor and the planner respects it without flailing the scalars.
+  balancer then scales whatever's left.
 - Non-breakfast scaling rules are unchanged: hero lines still drive
   servings via `heroFactor`, fixed lines still aren't class-scaled.
 
@@ -505,73 +507,97 @@ stayed high. Two small changes in
 On the smoke plan (`chicken_risotto` + `chicken_pie`) this lands at
 ~99 % / ~98 % / ~98 % of the maintain / cut / bulk kcal targets.
 
-Follow-up: the smoke-test tolerances stay loose (±40 % per macro on the
-balance smoke, ±40 % on the autoscale smoke) until the per-goal
-overrides on fat-heavy fixed lines are authored. See §7.4.
+**Phase 3.11 (partial decongestion)**: extracted
+[`day-macro-card.tsx`](src/app/plan/_components/day-macro-card.tsx) and
+[`shopping-list.tsx`](src/app/plan/_components/shopping-list.tsx) into
+`src/app/plan/_components/`. Page is down from 814 → 691 lines.
+`MealSection` and the two-pass balancer flow stay inline by design (one
+keeps the picker wiring local, the other keeps data-fetch + nutrition in
+one place). Any further plan-page refactor folds into §7.6.
 
-### 7.3 Recommendation system **[done — Phase 3.9]**
+### 7.3 Daily micronutrient roll-up on `/plan` **[next]**
 
-[`src/lib/recommend.ts`](src/lib/recommend.ts) +
-[`src/app/plan/recommendation-panel.tsx`](src/app/plan/recommendation-panel.tsx) +
-`swapOrAddPlanEntry` action.
+The per-recipe page already shows micros against EU NRV via
+[`src/lib/rda.ts`](src/lib/rda.ts). Bring the same roll-up to `/plan`:
+sum micros across breakfast + lunch + dinner (per-day), render an RDA
+bar grid below the macro card. Reuse the existing RDA bar component;
+no new math beyond per-day aggregation.
 
-**What it does today.** For each slot, ranks every non-breakfast recipe
-that isn't already planned and surfaces the top 3:
+### 7.4 Recipe baseline audit **[next]**
 
-```
-score(candidate) =
-    + goalNutritionFit                // cut: P/kcal×1000; bulk: kcal/10; maintain: flat 30
-    − 80 * sameCategoryAsOtherSlot    // hard variety penalty
-    − 50 * sameHeroAsOtherSlot        // softer variety penalty
-    −  0.5 * costPerServing           // mild thrift bonus
-```
+Six recipes were rebased to 1-pack hero baselines in Phase 3.10.1
+(`chicken_pie`, `chicken_risotto`, `pasta_with_chicken`, `puchero`,
+`rice_with_chicken_livers`, `rice_with_pork`). The remaining ~14
+recipes haven't been verified end-to-end. For each one, plan it on
+`/plan`, confirm at maintain · cut · bulk that:
 
-Deterministic and pure — fully unit-tested in
-[`tests/unit/recommend.test.ts`](tests/unit/recommend.test.ts) (filtering,
-variety penalties, goal-aware ranking, alphabetical tie-breaker, null
-category/hero handling).
+- Servings = whole-pack hero quantity ÷ heroPerServing lands at a
+  reasonable integer (not 17.6).
+- Side lines scale linearly with the hero (rice ratio holds).
+- Fixed lines (onion, stock cube, tortillas, puff pastry) stay at their
+  recipe defaults and don't collapse to 0 or balloon.
+- Per-serving kcal/macros match the recipe page.
 
-Cost per serving comes from
-[`computeRecipeCost`](src/lib/cost.ts) on the unscaled recipe lines (any
-unit-mismatched line evaluates to 0 cost — a small thrift bonus, never
-an error).
+Anything off → fix via a `_patch.mjs` per §3 (rebase the recipe to a
+1-pack hero baseline) and note the change in the commit body.
 
-The "reasons" array on each card surfaces the active penalties ("same
-category as other slot", "high protein density", …) for transparency.
+### 7.5 Investigate "puff pastry shows 0.0 unit" **[next]**
 
-**v2 ideas (not built yet).**
+Reported during 3.10.1 testing: a UI render showed a puff pastry side
+line as `0.0 unit`. After the fixed-line bucketing fix in 3.10.1 this
+is likely already gone, but it was never reproduced and verified
+post-fix. Steps:
 
-- **Last-week column.** Requires real plan history — `meal_plan_entries.date`
-  is currently a sentinel (`1970-01-01`). Once we start writing real dates
-  we can add `daysSinceLastCooked(candidate)` as a variety bonus.
-- **Ingredient-reuse thrift bonus.** If the candidate shares non-trivial
-  ingredients (onion, oil, rice) with the planned meals, give it a bump —
-  cooking adjacent recipes in the same week is cheaper.
-- **Macro-gap fit.** Today the goal-fit term is a per-recipe heuristic
-  (P/kcal for cut, kcal for bulk). A more accurate term would compute
-  the *remaining* macro budget after the other slot + breakfast, then
-  rank candidates whose per-serving profile lands closest to it. Not
-  worth doing until the per-goal balancer overrides land (§7.2) since
-  the macro balancer washes out most of the difference anyway.
+1. Plan `chicken_pie` on `/plan` at all three goals.
+2. Look for any line that renders `0.0 unit` or a fractional non-divisible
+   unit count.
+3. If still present: inspect `scalePortion` rounding for non-divisible
+   side lines measured in `unit`, and the JSX in
+   [`controls.tsx`](src/app/plan/controls.tsx) `PlanEntryRow`.
 
-### 7.4 Other things on the list
+If the bug is gone, close the item with a smoke screenshot in the
+commit body.
 
-- **Per-goal overrides authored on fat-heavy fixed lines.** §7.2 is
-  done (the pipeline reads `recipe_ingredient_overrides` and feeds them
-  into the balancer) but no overrides are populated yet. Top candidates:
-  reduce puff pastry on cut for chicken_pie / beef_pie / tuna_pie / pizza;
-  drop cheese on cut for burger / burrito / chicken_risotto; halve the
-  breakfast olive oil on cut. Once these exist, the smoke-test tolerance
-  can drop back to ±10 %.
-- **Daily micronutrient roll-up** on `/plan` (already on per-recipe
-  page).
-- **Pantry stock** (`pantry_items` table, subtract from shopping list).
-- **Export shopping list** to text / share to WhatsApp.
-- **Auth** (Supabase magic-link) — currently single-user, RLS is open.
-- **PWA** — manifest + service worker via Serwist.
+### 7.6 UI rework pass **[next]**
 
-### 7.5 Things we explicitly *won't* build
+A single closing pass on the visual design — no new pages, no new
+features. Scope:
 
+- Tighten the `/plan` layout: cleaner spacing, consistent typography,
+  the goal pills + auto-balance scalar pill should read as one header
+  block.
+- Mobile pass: confirm `/plan`, `/recipes/[slug]`, `/ingredients` all
+  work on a phone-width viewport; collapse the shopping list aside into
+  a `<details>` block on small screens.
+- Replace any remaining ad-hoc class strings with the existing UI
+  primitives in [`src/components/ui`](src/components/ui).
+- Remove debug strings (the `auto-balance · protein ×1.40 …` line can
+  go behind a `?debug=1` query toggle).
+
+### 7.7 Deployment / architecture final touches **[next]**
+
+Things to lock in before declaring the project done:
+
+- README "Quickstart" and "Deploy" sections re-verified end-to-end on a
+  clean clone.
+- `.env.example` matches the env vars the app actually reads (audit
+  against [`src/lib/env.ts`](src/lib/env.ts)).
+- Confirm CI gates (`biome ci`, `tsc --noEmit`, `pnpm test`,
+  `pnpm build`) all run on every PR; add the smoke jobs as a separate
+  manual workflow if not already.
+- Verify the live deploy at
+  https://smart-meal-planner-iota.vercel.app/ tracks `main` and that
+  Supabase env vars are set in the Vercel dashboard.
+- One-paragraph "post-mortem / handoff" note at the top of this file
+  once everything above is green.
+
+### 7.8 Things we explicitly *won't* build
+
+- **Pantry stock**, **shopping-list export**, **auth**, **PWA**,
+  **last-week recommendation column**, **ingredient-reuse thrift bonus**,
+  **macro-gap recommendation fit** — all previously listed as ideas;
+  dropped because the project is feature-complete for the single-user
+  use case it was built for.
 - **Receipt OCR via LLM.** Originally Phase 4. Removed because: (a) prices
   change rarely enough to update by hand once a month; (b) the LLM-error
   surface (wrong unit, wrong store, hallucinated price) was high enough

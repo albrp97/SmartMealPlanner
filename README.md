@@ -159,9 +159,17 @@ vercel --prod
 
 ## Roadmap
 
-See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md) for the full status,
-testing strategy and the next-up work (per-goal overrides on fat-heavy
-fixed lines, daily micronutrient roll-up, pantry stock).
+The project is in **closing scope** — no new features. The remaining
+work is finishing what's already in flight:
+
+1. Daily micronutrient roll-up on `/plan` (already on per-recipe page).
+2. Recipe baseline audit (~14 recipes left to verify).
+3. Investigate the "puff pastry shows 0.0 unit" rendering bug.
+4. UI rework pass.
+5. Deployment / architecture final touches.
+
+See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md) §7 for the detailed
+status, testing strategy and rationale for each item.
 
 ## License
 
